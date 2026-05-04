@@ -19,7 +19,7 @@ opensky-rest/
 │       ├── config_flow.py             # UI-based config (lat/lon/radius) + OAuth2 options
 │       ├── coordinator.py             # DataUpdateCoordinator wrapping opensky-api via executor
 │       ├── sensor.py                  # Flight count sensor with rich attributes
-│       ├── strings.json               # Localized UI strings
+│       ├── translations/              # Language translations
 │       └── icons.json                 # MDI icon mapping (mdi:airplane)
 ```
 
@@ -180,5 +180,5 @@ PYTHONPATH=".:$PYTHONPATH" python -m pytest tests/ -v
 - Follow HA core style (PEP 8, type hints with `from __future__ import annotations`)
 - Use `Final` for constants, `Protocol` where appropriate
 - Use `CoordinatorEntity[CoordinatorType]` generic typing
-- Strings in `strings.json` reference HA shared keys where possible (e.g., `[%key:common::config_flow::data::latitude%]`)
+- Translation files in `translations/` contain fully resolved strings
 - Keep the integration self-contained - no external services beyond OpenSky API
