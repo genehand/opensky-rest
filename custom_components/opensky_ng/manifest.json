@@ -1,10 +1,10 @@
 {
-  "domain": "opensky_rest",
+  "domain": "opensky_ng",
   "name": "OpenSky",
   "version": "0.1.4",
   "codeowners": ["@genehand"],
   "config_flow": true,
-  "documentation": "https://github.com/openskynetwork/opensky-api",
+  "documentation": "https://github.com/genehand/opensky-ng",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "requirements": [

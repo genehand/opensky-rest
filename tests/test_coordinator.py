@@ -6,11 +6,11 @@ import math
 
 import pytest
 
-from custom_components.opensky_rest.coordinator import (
+from custom_components.opensky_ng.coordinator import (
     _convert_aircraft_state,
     _extract_airline,
 )
-from custom_components.opensky_rest.const import (
+from custom_components.opensky_ng.const import (
     ATTR_AIRLINE,
     ATTR_ALTITUDE,
     ATTR_ALTITUDE_FT,
@@ -258,7 +258,7 @@ class TestFetchingEnabledFlag:
         import importlib
         import inspect
 
-        mod = importlib.import_module("custom_components.opensky_rest.coordinator")
+        mod = importlib.import_module("custom_components.opensky_ng.coordinator")
         coord_class = getattr(mod, "OpenSkyRestDataUpdateCoordinator", None)
         # When the class is a real type, verify the source
         if coord_class is not None and isinstance(coord_class, type):
@@ -276,7 +276,7 @@ class TestFetchingEnabledFlag:
         import importlib
         import asyncio
 
-        mod = importlib.import_module("custom_components.opensky_rest.coordinator")
+        mod = importlib.import_module("custom_components.opensky_ng.coordinator")
         coord_class = getattr(mod, "OpenSkyRestDataUpdateCoordinator", None)
         if coord_class is not None and isinstance(coord_class, type):
             dummy = object.__new__(coord_class)
@@ -287,7 +287,7 @@ class TestFetchingEnabledFlag:
             assert result["stats"]["total"] == 0
         else:
             # Mocked class — verify constants are correct instead
-            from custom_components.opensky_rest.const import (
+            from custom_components.opensky_ng.const import (
                 ATTR_COUNT, ATTR_AIRCRAFT, ATTR_STATS,
             )
             assert ATTR_COUNT == "count"

@@ -9,10 +9,10 @@ The integration monitors a configurable geographic area (bounding box defined by
 ## Directory Structure
 
 ```
-opensky-rest/
+opensky-ng/
 ├── AGENTS.md                          # This file
 ├── custom_components/
-│   └── opensky_rest/
+│   └── opensky_ng/
 │       ├── __init__.py                # HA entry point: async_setup_entry / async_unload_entry
 │       ├── manifest.json              # Metadata: domain, version, pip dependency
 │       ├── airports.py                # Airport ICAO → (name, city, country) lookup (1170 large airports)
@@ -37,7 +37,7 @@ The official `opensky-api` library uses the synchronous `requests` library. Rath
 
 ### Single sensor with rich attributes
 
-Following the existing `opensky` integration pattern, a single sensor entity (`sensor.opensky_rest_flight_count`) shows the flight count as its state, with all aircraft data and statistics in `extra_state_attributes`.
+Following the existing `opensky` integration pattern, a single sensor entity (`sensor.opensky_flights`) shows the flight count as its state, with all aircraft data and statistics in `extra_state_attributes`.
 
 ### Airline callsign lookup
 
@@ -81,16 +81,16 @@ OpenSkyRestSensor (CoordinatorEntity)
 
 ### Sensor
 
-- **`sensor.opensky_rest_flight_count`**: Number of airborne aircraft in the monitored area
+- **`sensor.opensky_flights`**: Number of airborne aircraft in the monitored area
   - State class: `measurement`
   - Unit: `flights`
   - Attributes: full aircraft list (with per-aircraft registration, Planespotters URLs, departure/arrival cities), avg altitude/speed, highest/fastest aircraft, airline breakdown
 
 ### Events
 
-- **`opensky_rest_entry`**: Fired when an aircraft enters the monitored airspace
+- **`opensky_ng_entry`**: Fired when an aircraft enters the monitored airspace
   - Event data: callsign, airline, altitude, position, icao24, origin_country, speed, heading, registration, image_url, departure/arrival airport/city/country
-- **`opensky_rest_exit`**: Fired when an aircraft leaves the monitored airspace
+- **`opensky_ng_exit`**: Fired when an aircraft leaves the monitored airspace
   - Same event data structure
 
 ## Configuration

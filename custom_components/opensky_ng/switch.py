@@ -71,7 +71,7 @@ class OpenSkyRestEnabledSwitch(
     ) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"{config_entry.entry_id}_opensky_rest_enabled"
+        self._attr_unique_id = f"{config_entry.entry_id}_opensky_ng_enabled"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{coordinator.config_entry.entry_id}")},
             manufacturer=MANUFACTURER,

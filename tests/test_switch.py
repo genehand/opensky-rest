@@ -101,7 +101,7 @@ for mod_name, mod in modules.items():
     sys.modules[mod_name] = mod
 
 # Safe to import now
-from custom_components.opensky_rest.switch import OpenSkyRestEnabledSwitch  # noqa: E402
+from custom_components.opensky_ng.switch import OpenSkyRestEnabledSwitch  # noqa: E402
 
 
 # ── Helpers ────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ class TestOpenSkyRestEnabledSwitch:
     def test_unique_id_format(self):
         """Unique ID should include the config entry ID."""
         switch = _make_switch(config_entry=_make_config_entry("entry_xyz"))
-        assert switch._attr_unique_id == "entry_xyz_opensky_rest_enabled"
+        assert switch._attr_unique_id == "entry_xyz_opensky_ng_enabled"
 
     # ── RestoreEntity: state restoration ─────────────────────────────
 

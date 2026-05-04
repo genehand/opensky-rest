@@ -68,7 +68,7 @@ class OpenSkyRestSensor(
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"{config_entry.entry_id}_opensky_rest"
+        self._attr_unique_id = f"{config_entry.entry_id}_opensky_ng"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{coordinator.config_entry.entry_id}")},
             manufacturer=MANUFACTURER,

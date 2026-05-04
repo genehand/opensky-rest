@@ -16,7 +16,7 @@ import pytest
 class _MockConfigFlow:
     """Stand-in for ConfigFlow that accepts domain= kwarg."""
 
-    DOMAIN = "opensky_rest"
+    DOMAIN = "opensky_ng"
     VERSION = 1
 
     def __init_subclass__(cls, **kwargs):
@@ -119,11 +119,11 @@ for mod_name, mod in modules.items():
     sys.modules[mod_name] = mod
 
 # Now safe to import from the component
-from custom_components.opensky_rest.config_flow import (
+from custom_components.opensky_ng.config_flow import (
     OpenSkyRestConfigFlowHandler,
     OpenSkyRestOptionsFlowHandler,
 )
-from custom_components.opensky_rest.const import DEFAULT_NAME
+from custom_components.opensky_ng.const import DEFAULT_NAME
 
 
 class TestOpenSkyRestConfigFlowHandler:
@@ -140,7 +140,7 @@ class TestOpenSkyRestConfigFlowHandler:
 
     def test_domain(self):
         """The flow handler should be registered under the correct domain."""
-        assert OpenSkyRestConfigFlowHandler.DOMAIN == "opensky_rest"
+        assert OpenSkyRestConfigFlowHandler.DOMAIN == "opensky_ng"
 
     def test_version(self):
         """Config flow version should be 1."""
@@ -225,8 +225,8 @@ class TestOpenSkyRestConfigFlowHandler:
         flow.hass.async_add_executor_job = AsyncMock(return_value=mock_states)
 
         with (
-            patch("custom_components.opensky_rest.config_flow.TokenManager"),
-            patch("custom_components.opensky_rest.config_flow.OpenSkyApi"),
+            patch("custom_components.opensky_ng.config_flow.TokenManager"),
+            patch("custom_components.opensky_ng.config_flow.OpenSkyApi"),
             patch.object(flow, "async_create_entry") as mock_create,
         ):
             await flow.async_step_user(
@@ -259,8 +259,8 @@ class TestOpenSkyRestConfigFlowHandler:
         flow.hass.async_add_executor_job = AsyncMock(return_value=None)
 
         with (
-            patch("custom_components.opensky_rest.config_flow.TokenManager"),
-            patch("custom_components.opensky_rest.config_flow.OpenSkyApi"),
+            patch("custom_components.opensky_ng.config_flow.TokenManager"),
+            patch("custom_components.opensky_ng.config_flow.OpenSkyApi"),
             patch.object(flow, "async_show_form") as mock_show,
         ):
             await flow.async_step_user(
@@ -362,8 +362,8 @@ class TestOpenSkyRestOptionsFlowHandler:
         flow.hass.async_add_executor_job = AsyncMock(return_value=mock_states)
 
         with (
-            patch("custom_components.opensky_rest.config_flow.TokenManager"),
-            patch("custom_components.opensky_rest.config_flow.OpenSkyApi"),
+            patch("custom_components.opensky_ng.config_flow.TokenManager"),
+            patch("custom_components.opensky_ng.config_flow.OpenSkyApi"),
             patch.object(flow, "async_create_entry") as mock_create,
         ):
             result = await flow.async_step_init(
@@ -386,8 +386,8 @@ class TestOpenSkyRestOptionsFlowHandler:
         flow.hass.async_add_executor_job = AsyncMock(return_value=None)
 
         with (
-            patch("custom_components.opensky_rest.config_flow.TokenManager"),
-            patch("custom_components.opensky_rest.config_flow.OpenSkyApi"),
+            patch("custom_components.opensky_ng.config_flow.TokenManager"),
+            patch("custom_components.opensky_ng.config_flow.OpenSkyApi"),
             patch.object(flow, "async_show_form") as mock_show,
         ):
             await flow.async_step_init(

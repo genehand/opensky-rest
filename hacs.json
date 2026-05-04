@@ -1,6 +1,6 @@
 {
   "name": "OpenSky",
-  "filename": "custom_components/opensky_rest",
+  "filename": "custom_components/opensky_ng",
   "homeassistant": "2024.1.0",
   "iot_class": "cloud_polling"
 }

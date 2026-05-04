@@ -9,9 +9,9 @@ from homeassistant.const import Platform
 
 LOGGER = logging.getLogger(__package__)
 
-DOMAIN: Final = "opensky_rest"
+DOMAIN: Final = "opensky_ng"
 MANUFACTURER: Final = "OpenSky Network"
-DEFAULT_NAME: Final = "OpenSky REST"
+DEFAULT_NAME: Final = "OpenSky"
 DEFAULT_ALTITUDE: Final = 0
 
 PLATFORMS: Final = [Platform.SENSOR, Platform.SWITCH]

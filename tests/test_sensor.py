@@ -85,7 +85,7 @@ for mod_name, mod in modules.items():
     sys.modules[mod_name] = mod
 
 # Now safe to import from the component
-from custom_components.opensky_rest.sensor import OpenSkyRestSensor
+from custom_components.opensky_ng.sensor import OpenSkyRestSensor
 
 
 class TestOpenSkyRestSensor:
@@ -222,7 +222,7 @@ class TestOpenSkyRestSensor:
         config_entry.entry_id = "entry_abc123"
 
         sensor = OpenSkyRestSensor(coordinator, config_entry)
-        assert sensor._attr_unique_id == "entry_abc123_opensky_rest"
+        assert sensor._attr_unique_id == "entry_abc123_opensky_ng"
 
     def test_entity_picture_with_image(self):
         """entity_picture should return the fastest aircraft's image."""
