@@ -135,6 +135,8 @@ class TestOpenSkyRestSensor:
             {
                 "callsign": "UAL123",
                 "airline": "United Airlines",
+                "registration": "N12345",
+                "aircraft_image_url": "https://t.plnspttrs.net/40667/1833758_ce6219854b_280.jpg",
                 "altitude_ft": 35_000.0,
                 "speed_kts": 485.0,
                 "true_track": 270.0,
@@ -174,6 +176,8 @@ class TestOpenSkyRestSensor:
         assert len(attrs["aircraft"]) == 1
         assert attrs["aircraft"][0]["callsign"] == "UAL123"
         assert attrs["aircraft"][0]["airline"] == "United Airlines"
+        assert attrs["aircraft"][0]["registration"] == "N12345"
+        assert attrs["aircraft"][0]["image_url"] == "https://t.plnspttrs.net/40667/1833758_ce6219854b_280.jpg"
         assert attrs["avg_altitude_ft"] == 35_000.0
         assert attrs["avg_speed_kts"] == 485.0
         assert attrs["highest_aircraft"] == "UAL123"
@@ -219,3 +223,75 @@ class TestOpenSkyRestSensor:
 
         sensor = OpenSkyRestSensor(coordinator, config_entry)
         assert sensor._attr_unique_id == "entry_abc123_opensky_rest"
+
+    def test_entity_picture_with_image(self):
+        """entity_picture should return the fastest aircraft's image."""
+        aircraft = [
+            {
+                "callsign": "UAL123",
+                "altitude_ft": 35_000.0,
+                "speed_kts": 485.0,
+                "aircraft_image_url": "https://t.plnspttrs.net/fast.jpg",
+            },
+            {
+                "callsign": "BAW456",
+                "altitude_ft": 37_000.0,
+                "speed_kts": 450.0,
+                "aircraft_image_url": "https://t.plnspttrs.net/high.jpg",
+            },
+        ]
+        coordinator = self._make_mock_coordinator(
+            data={"count": 2, "aircraft": aircraft, "stats": {}}
+        )
+        config_entry = MagicMock()
+        config_entry.entry_id = "test_id"
+
+        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        # Fastest (UAL123 at 485 kts) should be picked
+        assert sensor.entity_picture == "https://t.plnspttrs.net/fast.jpg"
+
+    def test_entity_picture_fallback_to_highest(self):
+        """entity_picture should fall back to highest when fastest has no image."""
+        aircraft = [
+            {
+                "callsign": "UAL123",
+                "altitude_ft": 35_000.0,
+                "speed_kts": 485.0,
+                "aircraft_image_url": None,
+            },
+            {
+                "callsign": "BAW456",
+                "altitude_ft": 37_000.0,
+                "speed_kts": 450.0,
+                "aircraft_image_url": "https://t.plnspttrs.net/high.jpg",
+            },
+        ]
+        coordinator = self._make_mock_coordinator(
+            data={"count": 2, "aircraft": aircraft, "stats": {}}
+        )
+        config_entry = MagicMock()
+        config_entry.entry_id = "test_id"
+
+        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        # Fastest has no image, fallback to highest (BAW456)
+        assert sensor.entity_picture == "https://t.plnspttrs.net/high.jpg"
+
+    def test_entity_picture_no_data(self):
+        """entity_picture should return None when there is no data."""
+        coordinator = self._make_mock_coordinator(data=None)
+        config_entry = MagicMock()
+        config_entry.entry_id = "test_id"
+
+        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        assert sensor.entity_picture is None
+
+    def test_entity_picture_no_aircraft(self):
+        """entity_picture should return None when there are no aircraft."""
+        coordinator = self._make_mock_coordinator(
+            data={"count": 0, "aircraft": [], "stats": {}}
+        )
+        config_entry = MagicMock()
+        config_entry.entry_id = "test_id"
+
+        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        assert sensor.entity_picture is None

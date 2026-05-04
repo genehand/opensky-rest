@@ -4,7 +4,7 @@
 
 This project is a **custom Home Assistant integration** that provides real-time aircraft tracking data from the [OpenSky Network](https://opensky-network.org) REST API. It wraps the official [`opensky-api`](https://github.com/openskynetwork/opensky-api) Python library (v1.4.0) in HA's `async_add_executor_job` pattern to keep the event loop responsive.
 
-The integration monitors a configurable geographic area (bounding box defined by lat/lon/radius) and exposes a sensor showing the number of aircraft with rich attributes (callsign, airline, altitude, speed, heading, origin country, etc.). It also fires events when aircraft enter or leave the monitored airspace.
+The integration monitors a configurable geographic area (bounding box defined by lat/lon/radius) and exposes a sensor showing the number of aircraft with rich attributes (callsign, airline, registration, altitude, speed, heading, origin country, Planespotters link, etc.). It also fires events when aircraft enter or leave the monitored airspace.
 
 ## Directory Structure
 
@@ -15,7 +15,8 @@ opensky-rest/
 │   └── opensky_rest/
 │       ├── __init__.py                # HA entry point: async_setup_entry / async_unload_entry
 │       ├── manifest.json              # Metadata: domain, version, pip dependency
-│       ├── const.py                   # Constants, airline lookup table (~150 airlines)
+│       ├── airports.py                # Airport ICAO → (name, city, country) lookup (1170 large airports)
+│       ├── const.py                   # Constants, airline lookup tables (~150 airlines)
 │       ├── config_flow.py             # UI-based config (lat/lon/radius) + OAuth2 options
 │       ├── coordinator.py             # DataUpdateCoordinator wrapping opensky-api via executor
 │       ├── sensor.py                  # Flight count sensor with rich attributes
@@ -42,6 +43,16 @@ Following the existing `opensky` integration pattern, a single sensor entity (`s
 
 Extracts the first 3 characters of each callsign (e.g., "UAL123" → "UAL") and looks up the airline name from a built-in table of ~150 ICAO airline designators. Unknown prefixes result in `None`.
 
+### Departure/arrival city enrichment
+
+Each aircraft's attributes include `departure_city`, `departure_country`, `arrival_city`, and `arrival_country` fields derived from OpenSky's historical flight data. A background task calls `opensky_api.get_flights_by_aircraft(icao24, begin, end)` for each new aircraft entering the monitored area and caches the results for 1 hour. The returned `estDepartureAirport`/`estArrivalAirport` ICAO codes (e.g., `"KLAX"`) are looked up in a built-in table of 1,170 large airports worldwide (sourced from OurAirports). Aircraft whose route data isn't cached yet show `None` for these fields until the background query completes (usually within the next poll cycle).
+
+**API credit impact**: Each `get_flights_by_aircraft` call costs 1 credit per aircraft. With 1-hour caching and 30 unique aircraft/hour, this adds ~30 credits/hour to the main state vector call. Authenticated users (4,000+ credits/day) can comfortably use this.
+
+### Aircraft registration & Planespotters links
+
+Each aircraft's attributes include a `registration` field (tail number like "N12345") resolved from the aircraft's ICAO24 transponder code via the [airplanes.live](https://api.airplanes.live) public API (`https://api.airplanes.live/v2/icao/{icao24}`). A background task calls this endpoint for each new aircraft entering the monitored area and caches the results for 24 hours (registration rarely changes per airframe). A `image_url` field is also provided, linking to `https://t.plnspttrs.net/` for easy photo lookup. Registration data becomes available within 1-2 poll cycles after first detection.
+
 ## Architecture & Data Flow
 
 ```
@@ -57,6 +68,8 @@ OpenSkyRestDataUpdateCoordinator (async)
     │   ├── convert StateVectors → dicts (alt_ft, speed_kts, airline name, category name)
     │   ├── compute entry/exit sets → fire HA events
     │   ├── compute statistics (averages, top-N, airline breakdown)
+    │   ├── spawn background flight enrichment (get_flights_by_aircraft)
+    │   ├── spawn background aircraft metadata enrichment (get registration)
     │   └── return {count, aircraft[], stats{}}
     └── data → sensors read via self.coordinator.data
 OpenSkyRestSensor (CoordinatorEntity)
@@ -71,12 +84,12 @@ OpenSkyRestSensor (CoordinatorEntity)
 - **`sensor.opensky_rest_flight_count`**: Number of airborne aircraft in the monitored area
   - State class: `measurement`
   - Unit: `flights`
-  - Attributes: full aircraft list, avg altitude/speed, highest/fastest aircraft, airline breakdown
+  - Attributes: full aircraft list (with per-aircraft registration, Planespotters URLs, departure/arrival cities), avg altitude/speed, highest/fastest aircraft, airline breakdown
 
 ### Events
 
 - **`opensky_rest_entry`**: Fired when an aircraft enters the monitored airspace
-  - Event data: callsign, airline, altitude, position, icao24, origin_country, speed, heading
+  - Event data: callsign, airline, altitude, position, icao24, origin_country, speed, heading, registration, image_url, departure/arrival airport/city/country
 - **`opensky_rest_exit`**: Fired when an aircraft leaves the monitored airspace
   - Same event data structure
 
@@ -119,7 +132,6 @@ Bounding box area = lat_range × lon_range (in square degrees):
 ## Known Limitations
 
 - **No airline names** from OpenSky directly - we infer from callsign prefix (best-effort, ~150 airlines in lookup)
-- **No plane images** - OpenSky doesn't provide this
 - **No scheduled times** - OpenSky only provides observed/estimated times
 - **Bounding box is approximate** - uses flat-earth approximation (adequate for <500km radius)
 
@@ -130,6 +142,7 @@ Bounding box area = lat_range × lon_range (in square degrees):
   - The library provides: `OpenSkyApi`, `TokenManager`, `StateVector`, `OpenSkyStates`, `FlightData`, `FlightTrack`, `Waypoint`
   - We only use `OpenSkyApi`, `TokenManager`, `OpenSkyStates`, and `StateVector`
 - **HA Core**: Standard HA patterns (`DataUpdateCoordinator`, `CoordinatorEntity`, `ConfigFlow`)
+- **External API**: [airplanes.live](https://api.airplanes.live) — free, public API for ICAO24 → registration lookups (no API key required)
 
 ## Tests
 
@@ -138,10 +151,10 @@ Located in `tests/`:
 ```
 tests/
 ├── conftest.py             # Shared fixtures: sample StateVectors, mock config entry
-├── test_const.py           # 11 tests: airline lookup completeness, category/position maps
-├── test_coordinator.py     # 18 tests: _extract_airline, _convert_aircraft_state, bounding box
-├── test_config_flow.py     # 8 tests: config flow creation, OAuth2 validation logic
-└── test_sensor.py          # 8 tests: native_value, extra_state_attributes, unique_id, attribution
+├── test_const.py           # Airline lookup completeness, category/position maps
+├── test_coordinator.py     # _extract_airline, _convert_aircraft_state, bounding box
+├── test_config_flow.py     # Config flow creation, OAuth2 validation, options flow
+└── test_sensor.py          # native_value, extra_state_attributes, unique_id, attribution
 ```
 
 ### Running Tests
@@ -150,8 +163,6 @@ tests/
 source .venv/bin/activate
 PYTHONPATH=".:$PYTHONPATH" python -m pytest tests/ -v
 ```
-
-**Total: 45 tests**
 
 ### Test Approach
 

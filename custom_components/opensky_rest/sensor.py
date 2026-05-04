@@ -13,7 +13,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     ATTR_AIRCRAFT,
+    ATTR_AIRCRAFT_IMAGE_URL,
+    ATTR_ARRIVAL_CITY,
+    ATTR_ARRIVAL_COUNTRY,
     ATTR_COUNT,
+    ATTR_DEPARTURE_CITY,
+    ATTR_DEPARTURE_COUNTRY,
+    ATTR_REGISTRATION,
     ATTR_STATS,
     DOMAIN,
     MANUFACTURER,
@@ -91,6 +97,8 @@ class OpenSkyRestSensor(
             summary = {
                 "callsign": ac.get("callsign"),
                 "airline": ac.get("airline"),
+                "registration": ac.get(ATTR_REGISTRATION),
+                "image_url": ac.get(ATTR_AIRCRAFT_IMAGE_URL),
                 "altitude_ft": ac.get("altitude_ft"),
                 "speed_kts": ac.get("speed_kts"),
                 "heading": ac.get("true_track"),
@@ -101,6 +109,10 @@ class OpenSkyRestSensor(
                 "on_ground": ac.get("on_ground"),
                 "category": ac.get("category_name"),
                 "icao24": ac.get("icao24"),
+                "departure_city": ac.get(ATTR_DEPARTURE_CITY),
+                "departure_country": ac.get(ATTR_DEPARTURE_COUNTRY),
+                "arrival_city": ac.get(ATTR_ARRIVAL_CITY),
+                "arrival_country": ac.get(ATTR_ARRIVAL_COUNTRY),
             }
             aircraft_summary.append(summary)
 
@@ -122,3 +134,32 @@ class OpenSkyRestSensor(
             attrs["airlines"] = stats.get("airlines", {})
 
         return attrs
+
+    @property
+    def entity_picture(self) -> str | None:
+        """Return the best available aircraft image as the entity picture.
+
+        Uses the image from the fastest aircraft if available, otherwise
+        falls back to the highest aircraft.
+        """
+        if self.coordinator.data is None:
+            return None
+        aircraft_list = self.coordinator.data.get(ATTR_AIRCRAFT, [])
+        if not aircraft_list:
+            return None
+
+        # Prefer the fastest aircraft's image
+        fastest = max(
+            aircraft_list,
+            key=lambda a: a.get("speed_kts") or 0,
+        )
+        image_url = fastest.get(ATTR_AIRCRAFT_IMAGE_URL)
+        if image_url:
+            return image_url
+
+        # Fallback to highest aircraft
+        highest = max(
+            aircraft_list,
+            key=lambda a: a.get("altitude_ft") or 0,
+        )
+        return highest.get(ATTR_AIRCRAFT_IMAGE_URL)
