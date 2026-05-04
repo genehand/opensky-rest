@@ -1,0 +1,73 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "altitude": "Max Altitude (meters, 0 = no limit)",
+          "latitude": "[%key:common::config_flow::data::latitude%]",
+          "longitude": "[%key:common::config_flow::data::longitude%]",
+          "radius": "Radius (meters)"
+        },
+        "description": "Configure the area to monitor for aircraft.\n\nLeave altitude at 0 to track all altitudes."
+      }
+    },
+    "error": {
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "oauth_missing_fields": "Both Client ID and Client Secret are required for authentication.",
+      "no_authentication": "No credentials provided. Running in anonymous mode with reduced rate limits."
+    },
+    "abort": {
+      "single_instance_allowed": "Only one OpenSky REST configuration is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "altitude": "[%key:component::opensky_rest::config::step::user::data::altitude%]",
+          "client_id": "OAuth2 Client ID (from OpenSky account page)",
+          "client_secret": "OAuth2 Client Secret",
+          "radius": "[%key:component::opensky_rest::config::step::user::data::radius%]"
+        },
+        "description": "Adjust the monitoring area or add OAuth2 credentials for more frequent updates (every 90s vs 15min).\n\nGet credentials from: https://opensky-network.org/my-opensky/account"
+      }
+    },
+    "error": {
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "oauth_missing_fields": "Both Client ID and Client Secret are required."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "flights": {
+        "name": "Flight count",
+        "state_attributes": {
+          "aircraft": {
+            "name": "Tracked aircraft"
+          },
+          "total_aircraft": {
+            "name": "Total aircraft"
+          },
+          "avg_altitude_ft": {
+            "name": "Average altitude"
+          },
+          "avg_speed_kts": {
+            "name": "Average speed"
+          },
+          "max_speed_kts": {
+            "name": "Max speed"
+          },
+          "highest_aircraft": {
+            "name": "Highest aircraft"
+          },
+          "fastest_aircraft": {
+            "name": "Fastest aircraft"
+          },
+          "airlines": {
+            "name": "Airlines breakdown"
+          }
+        }
+      }
+    }
+  }
+}

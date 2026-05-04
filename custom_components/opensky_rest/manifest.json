@@ -1,0 +1,13 @@
+{
+  "domain": "opensky_rest",
+  "name": "OpenSky",
+  "version": "0.1.0",
+  "codeowners": ["@genehand"],
+  "config_flow": true,
+  "documentation": "https://github.com/openskynetwork/opensky-api",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "requirements": [
+    "opensky-api @ git+https://github.com/openskynetwork/opensky-api.git#subdirectory=python"
+  ]
+}
