@@ -54,8 +54,8 @@ from .const import (
     POSITION_SOURCE_MAP,
 )
 
-UPDATE_INTERVAL_AUTH: timedelta = timedelta(seconds=90)
-UPDATE_INTERVAL_ANON: timedelta = timedelta(minutes=15)
+UPDATE_INTERVAL_AUTH: timedelta = timedelta(seconds=30)
+UPDATE_INTERVAL_ANON: timedelta = timedelta(minutes=5)
 
 
 def _extract_airline(callsign: str | None) -> str | None:
