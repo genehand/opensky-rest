@@ -14,7 +14,7 @@ MANUFACTURER: Final = "OpenSky Network"
 DEFAULT_NAME: Final = "OpenSky REST"
 DEFAULT_ALTITUDE: Final = 0
 
-PLATFORMS: Final = [Platform.SENSOR]
+PLATFORMS: Final = [Platform.SENSOR, Platform.SWITCH]
 
 # Configuration keys
 CONF_ALTITUDE: Final = "altitude"
@@ -62,8 +62,9 @@ ATTR_ARRIVAL_AIRPORT: Final = "arrival_airport"
 ATTR_ARRIVAL_CITY: Final = "arrival_city"
 ATTR_ARRIVAL_COUNTRY: Final = "arrival_country"
 
-# Sensor translations
+# Sensor/switch translations
 TRANSLATION_KEY_FLIGHTS: Final = "flights"
+TRANSLATION_KEY_ENABLED: Final = "enabled"
 
 # Category mapping from OpenSky API
 CATEGORY_MAP: Final[dict[int, str]] = {

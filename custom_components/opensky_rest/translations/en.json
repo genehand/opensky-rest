@@ -38,6 +38,11 @@
     }
   },
   "entity": {
+    "switch": {
+      "enabled": {
+        "name": "Enabled"
+      }
+    },
     "sensor": {
       "flights": {
         "name": "Flight count",

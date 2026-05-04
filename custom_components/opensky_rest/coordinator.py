@@ -204,6 +204,7 @@ class OpenSkyRestDataUpdateCoordinator(
         self._is_authenticated: bool = False
         self._flight_cache: dict[str, dict[str, Any]] = {}
         self._aircraft_metadata_cache: dict[str, dict[str, Any]] = {}
+        self.fetching_enabled: bool = True
 
         # Determine update interval based on authentication
         self._client_id = config_entry.options.get(CONF_CLIENT_ID)
@@ -529,6 +530,10 @@ class OpenSkyRestDataUpdateCoordinator(
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch state vectors from OpenSky and return structured data."""
+        if not self.fetching_enabled:
+            LOGGER.debug("OpenSky REST fetching is disabled, skipping update")
+            return self._empty_result()
+
         try:
             states = await self.hass.async_add_executor_job(
                 self._api.get_states,
