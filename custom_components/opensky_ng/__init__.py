@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 
+from . import airports
 from .const import DOMAIN, PLATFORMS
 from .coordinator import OpenSkyRestDataUpdateCoordinator
 
@@ -15,6 +16,17 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up OpenSky REST from a config entry."""
+    # Set cache path before resolving AIRPORT_LOOKUP so the file cache
+    # is used instead of a raw network fetch.
+    airports.CACHE_PATH = hass.config.path(
+        ".storage", "opensky_ng_airports.json"
+    )
+
+    # Force eager resolution of the airport lookup table so it is ready
+    # for the very first poll cycle.  This triggers the lazy __getattr__
+    # with CACHE_PATH already set.
+    _ = airports.AIRPORT_LOOKUP
+
     coordinator = OpenSkyRestDataUpdateCoordinator(hass, entry)
 
     try:

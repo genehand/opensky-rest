@@ -186,6 +186,131 @@ PYTHONPATH=".:$PYTHONPATH" python -m pytest tests/ -v
 - **OAuth2 "invalid_auth"**: Ensure client_id and client_secret are from the OpenSky account page (API Clients section). Credentials must be for the OAuth2 client credentials flow.
 - **Large attribute payloads**: In areas with heavy air traffic (e.g., London, Atlanta), the `aircraft` attribute list can be large. This is a known limitation of the single-sensor approach.
 
+## Testing Patterns
+
+### Mocking Home Assistant
+
+Because the component imports `from homeassistant.X import Y` at module level, you cannot simply `import custom_components.opensky_ng` without `homeassistant` installed. The established pattern is to mock the entire `homeassistant` module tree **before** any component import, using `types.ModuleType` (not `MagicMock`) so that `from X import Y` works:
+
+```python
+# tests/conftest.py — at module level, before any component imports
+
+import sys
+import types
+
+_ha_const = types.ModuleType("homeassistant.const")
+_ha_const.CONF_LATITUDE = "latitude"
+_ha_const.CONF_LONGITUDE = "longitude"
+_ha_const.CONF_RADIUS = "radius"
+_ha_const.Platform = types.SimpleNamespace()
+_ha_const.Platform.SENSOR = "sensor"
+_ha_const.Platform.SWITCH = "switch"
+
+_ha_exceptions = types.ModuleType("homeassistant.exceptions")
+_ha_exceptions.ConfigEntryNotReady = Exception
+
+_ha_config_entries = types.ModuleType("homeassistant.config_entries")
+_ha_config_entries.ConfigEntry = types.SimpleNamespace()
+
+_ha_core = types.ModuleType("homeassistant.core")
+_ha_core.HomeAssistant = types.SimpleNamespace()
+
+_ha_helpers_update_coordinator = types.ModuleType(
+    "homeassistant.helpers.update_coordinator"
+)
+
+class _MockCoordinatorEntity:
+    def __class_getitem__(cls, item):
+        return cls
+    def __init__(self, coordinator):
+        self.coordinator = coordinator
+
+class _MockDataUpdateCoordinator:
+    def __class_getitem__(cls, item):
+        return cls
+
+_ha_helpers_update_coordinator.CoordinatorEntity = _MockCoordinatorEntity
+_ha_helpers_update_coordinator.DataUpdateCoordinator = _MockDataUpdateCoordinator
+_ha_helpers_update_coordinator.UpdateFailed = Exception
+
+for mod_name, mod in {
+    "homeassistant": types.ModuleType("homeassistant"),
+    "homeassistant.const": _ha_const,
+    "homeassistant.exceptions": _ha_exceptions,
+    "homeassistant.config_entries": _ha_config_entries,
+    "homeassistant.core": _ha_core,
+    "homeassistant.helpers": types.ModuleType("homeassistant.helpers"),
+    "homeassistant.helpers.config_validation": types.ModuleType(
+        "homeassistant.helpers.config_validation"
+    ),
+    "homeassistant.helpers.update_coordinator": _ha_helpers_update_coordinator,
+    "homeassistant.helpers.entity_platform": types.ModuleType(
+        "homeassistant.helpers.entity_platform"
+    ),
+}.items():
+    sys.modules[mod_name] = mod
+```
+
+**Key rule**: This must appear at the top of `conftest.py` (or the test file) **before** any `from custom_components.opensky_ng.X import Y` statements.
+
+### Preventing Real Network Calls
+
+Modules like `airports.py` make HTTP calls at module import time (to fetch the airport lookup table). Mock `requests.get` at the module level in `conftest.py`:
+
+```python
+from unittest.mock import MagicMock, patch
+
+_empty_csv = (
+    b"Code,Name,ICAO,IATA,Location,CountryISO2,Latitude,Longitude,AltitudeFeet\n"
+    b",Heathrow,EGLL,LHR,London,GB,51.47,-0.46,83\n"
+)
+_mock_response = MagicMock()
+_mock_response.status_code = 200
+_mock_response.content = _empty_csv
+_mock_response.raise_for_status = MagicMock()
+_mock_response.headers = {}
+
+_patch = patch("requests.get", return_value=_mock_response)
+_patch.start()
+```
+
+### Handling Lazy Module Initialization
+
+Some modules (e.g., `airports.py`) use `__getattr__` for lazy initialization so that `CACHE_PATH` can be set by `__init__.py` before the lookup is resolved. In tests, you must **pre-resolve** the lazy attribute to avoid triggering a network call:
+
+```python
+# In conftest.py, after the requests.get patch:
+import custom_components.opensky_ng.airports as _airports_mod
+_airports_mod.CACHE_PATH = None  # Disable file cache in tests
+_airports_mod._AIRPORT_LOOKUP_CACHE = {
+    "EGLL": ("Heathrow Airport", "London", "GB"),
+    "KJFK": ("JFK Airport", "New York", "US"),
+}
+_ = _airports_mod.AIRPORT_LOOKUP  # Trigger lazy resolution with test data
+```
+
+If you need an empty lookup for a specific test, set `CACHE_PATH = None` and call `_ = airports.AIRPORT_LOOKUP` before the test runs.
+
+### Testing Module-Level Functions
+
+For pure functions that don't depend on HA (e.g., `_parse_response`, `_extract_airline`), import them directly from the component module. The `sys.modules` + `requests.get` mocks in `conftest.py` ensure these imports work without the full HA runtime or real network calls:
+
+```python
+def test_known_prefix(self):
+    from custom_components.opensky_ng.coordinator import _extract_airline
+    assert _extract_airline("UAL123") == "United Airlines"
+```
+
+### Key Patterns Summary
+
+| Pattern | How |
+|---------|-----|
+| Mock `homeassistant` | `types.ModuleType` in `conftest.py`, before any component import |
+| Mock `requests` | `patch("requests.get", ...)` at module level in `conftest.py` |
+| Lazy module init | Pre-resolve via `._AIRPORT_LOOKUP_CACHE = {...}` then `_ = mod.AIRPORT_LOOKUP` |
+| Pure function tests | `from custom_components.opensky_ng.X import func` — mocks handle the rest |
+| Per-test network mocking | `with patch("requests.get", return_value=mock_resp):` |
+
 ## Coding Style
 
 - Follow HA core style (PEP 8, type hints with `from __future__ import annotations`)

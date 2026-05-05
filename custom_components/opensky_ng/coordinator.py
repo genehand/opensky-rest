@@ -15,7 +15,7 @@ from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, CONF_RADIUS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .airports import AIRPORT_LOOKUP
+from . import airports
 from .const import (
     AIRLINE_LOOKUP,
     ATTR_AIRCRAFT,
@@ -91,7 +91,7 @@ def _airport_city(icao_code: str | None) -> str | None:
     """Look up the city name for an ICAO airport code."""
     if not icao_code:
         return None
-    info = AIRPORT_LOOKUP.get(icao_code.upper())
+    info = airports.AIRPORT_LOOKUP.get(icao_code.upper())
     if info is None:
         LOGGER.debug("Airport code %s not found in lookup table", icao_code)
     return info[1] if info else None
@@ -101,7 +101,7 @@ def _airport_country(icao_code: str | None) -> str | None:
     """Look up the country name for an ICAO airport code."""
     if not icao_code:
         return None
-    info = AIRPORT_LOOKUP.get(icao_code.upper())
+    info = airports.AIRPORT_LOOKUP.get(icao_code.upper())
     return info[2] if info else None
 
 

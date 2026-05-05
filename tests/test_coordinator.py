@@ -502,7 +502,7 @@ class TestFetchRouteData:
         assert result is not None
         # Verify the URL uses uppercased prefix directory but keeps original callsign
         call_args = mock_get.call_args
-        assert call_args[0][0] == "https://vrs-standing-data.adsb.lol/routes/BA/baw123"
+        assert call_args[0][0] == "https://vrs-standing-data.adsb.lol/routes/BA/baw123.json"
 
     def test_callsign_with_whitespace_stripped(self):
         """Whitespace-padded callsigns should be stripped."""
