@@ -1,7 +1,7 @@
 {
   "domain": "opensky_ng",
   "name": "OpenSky",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "codeowners": ["@genehand"],
   "config_flow": true,
   "documentation": "https://github.com/genehand/opensky-ng",

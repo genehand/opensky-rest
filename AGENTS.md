@@ -15,7 +15,7 @@ opensky-ng/
 │   └── opensky_ng/
 │       ├── __init__.py                # HA entry point: async_setup_entry / async_unload_entry
 │       ├── manifest.json              # Metadata: domain, version, pip dependency
-│       ├── airports.py                # Airport ICAO → (name, city, country) lookup (1170 large airports)
+│       ├── airports.py                # Airport ICAO → (name, city, country) lookup (fetched live from adsb.lol)
 │       ├── const.py                   # Constants, airline lookup tables (~150 airlines)
 │       ├── config_flow.py             # UI-based config (lat/lon/radius) + OAuth2 options
 │       ├── coordinator.py             # DataUpdateCoordinator wrapping opensky-api via executor

@@ -3,23 +3,87 @@
 from __future__ import annotations
 
 import math
+import sys
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
+# ── Mock the entire homeassistant module tree ──────────────────────────
+
+
+class _MockCoordinatorEntity:
+    """Stand-in for CoordinatorEntity.
+
+    Supports subscripting for generic type hints via __class_getitem__.
+    """
+
+    def __class_getitem__(cls, item):
+        return cls
+
+    def __init__(self, coordinator):
+        self.coordinator = coordinator
+
+
+class _MockDataUpdateCoordinator:
+    """Stand-in for DataUpdateCoordinator for type-hint subscripting."""
+
+    def __class_getitem__(cls, item):
+        return cls
+
+
+_ha_mock = MagicMock()
+_ha_mock.const.Platform = MagicMock()
+_ha_mock.const.Platform.SENSOR = "sensor"
+_ha_mock.const.Platform.SWITCH = "switch"
+_ha_mock.const.CONF_LATITUDE = "latitude"
+_ha_mock.const.CONF_LONGITUDE = "longitude"
+_ha_mock.const.CONF_RADIUS = "radius"
+_ha_mock.exceptions.ConfigEntryNotReady = Exception
+_ha_mock.helpers.config_validation = MagicMock()
+_ha_mock.helpers.config_validation.config_entry_only_config_schema = lambda x: {}
+_ha_mock.helpers.update_coordinator.CoordinatorEntity = _MockCoordinatorEntity
+_ha_mock.helpers.update_coordinator.DataUpdateCoordinator = _MockDataUpdateCoordinator
+_ha_mock.helpers.update_coordinator.UpdateFailed = Exception
+_ha_mock.config_entries.ConfigEntry = MagicMock
+_ha_mock.core.HomeAssistant = MagicMock
+
+modules = {
+    "homeassistant": _ha_mock,
+    "homeassistant.const": _ha_mock.const,
+    "homeassistant.exceptions": _ha_mock.exceptions,
+    "homeassistant.helpers": _ha_mock.helpers,
+    "homeassistant.helpers.config_validation": _ha_mock.helpers.config_validation,
+    "homeassistant.helpers.update_coordinator": _ha_mock.helpers.update_coordinator,
+    "homeassistant.config_entries": _ha_mock.config_entries,
+    "homeassistant.core": _ha_mock.core,
+}
+for mod_name, mod in modules.items():
+    sys.modules[mod_name] = mod
+
+# Now safe to import from the component
 from custom_components.opensky_ng.coordinator import (
     _convert_aircraft_state,
     _extract_airline,
+    _fetch_route_data,
 )
 from custom_components.opensky_ng.const import (
     ATTR_AIRLINE,
     ATTR_ALTITUDE,
     ATTR_ALTITUDE_FT,
+    ATTR_AIRCRAFT_IMAGE_URL,
+    ATTR_ARRIVAL_AIRPORT,
+    ATTR_ARRIVAL_CITY,
+    ATTR_ARRIVAL_COUNTRY,
     ATTR_CALLSIGN,
     ATTR_CATEGORY_NAME,
+    ATTR_DEPARTURE_AIRPORT,
+    ATTR_DEPARTURE_CITY,
+    ATTR_DEPARTURE_COUNTRY,
     ATTR_ICAO24,
     ATTR_ON_GROUND,
     ATTR_ORIGIN_COUNTRY,
     ATTR_POSITION_SOURCE_NAME,
+    ATTR_REGISTRATION,
     ATTR_SPEED_KTS,
     ATTR_TRUE_TRACK,
 )
@@ -294,3 +358,192 @@ class TestFetchingEnabledFlag:
             assert ATTR_AIRCRAFT == "aircraft"
             assert ATTR_STATS == "stats"
 
+
+class TestFetchRouteData:
+    """Tests for the VRS standing data route lookup."""
+
+    def _make_mock_response(self, json_data: dict, status_code: int = 200) -> MagicMock:
+        """Create a mock requests.Response."""
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.json.return_value = json_data
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    def test_successful_route_lookup(self):
+        """A known callsign should return departure/arrival data."""
+        mock_resp = self._make_mock_response({
+            "callsign": "BAW123",
+            "airport_codes": "EGLL-OTHH",
+            "_airports": [
+                {
+                    "name": "London Heathrow Airport",
+                    "icao": "EGLL",
+                    "iata": "LHR",
+                    "location": "London",
+                    "countryiso2": "GB",
+                },
+                {
+                    "name": "Hamad International Airport",
+                    "icao": "OTHH",
+                    "iata": "DOH",
+                    "location": "Doha",
+                    "countryiso2": "QA",
+                },
+            ],
+        })
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+            result = _fetch_route_data("BAW123")
+
+        assert result is not None
+        assert result[ATTR_DEPARTURE_AIRPORT] == "EGLL"
+        assert result[ATTR_DEPARTURE_CITY] == "London"
+        assert result[ATTR_DEPARTURE_COUNTRY] == "GB"
+        assert result[ATTR_ARRIVAL_AIRPORT] == "OTHH"
+        assert result[ATTR_ARRIVAL_CITY] == "Doha"
+        assert result[ATTR_ARRIVAL_COUNTRY] == "QA"
+
+    def test_successful_route_lookup_southwest(self):
+        """A multi-stop route should use first/last airports."""
+        mock_resp = self._make_mock_response({
+            "callsign": "SWA1",
+            "airport_codes": "KDAL-KHOU-KCRP",
+            "_airports": [
+                {
+                    "name": "Dallas Love Field",
+                    "icao": "KDAL",
+                    "iata": "DAL",
+                    "location": "Dallas",
+                    "countryiso2": "US",
+                },
+                {
+                    "name": "William P Hobby Airport",
+                    "icao": "KHOU",
+                    "iata": "HOU",
+                    "location": "Houston",
+                    "countryiso2": "US",
+                },
+                {
+                    "name": "Corpus Christi International Airport",
+                    "icao": "KCRP",
+                    "iata": "CRP",
+                    "location": "Corpus Christi",
+                    "countryiso2": "US",
+                },
+            ],
+        })
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+            result = _fetch_route_data("SWA1")
+
+        assert result is not None
+        # First airport = departure
+        assert result[ATTR_DEPARTURE_AIRPORT] == "KDAL"
+        assert result[ATTR_DEPARTURE_CITY] == "Dallas"
+        # Last airport = arrival
+        assert result[ATTR_ARRIVAL_AIRPORT] == "KCRP"
+        assert result[ATTR_ARRIVAL_CITY] == "Corpus Christi"
+
+    def test_not_found_returns_none(self):
+        """A 404 should return None (callsign not in standing data)."""
+        mock_resp = self._make_mock_response({}, status_code=404)
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+            result = _fetch_route_data("ZZZ999")
+
+        assert result is None
+
+    def test_http_error_returns_none(self):
+        """An HTTP error should return None."""
+        import requests as requests_mod
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        mock_resp.raise_for_status.side_effect = requests_mod.HTTPError("500 Server Error")
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+            result = _fetch_route_data("BAW123")
+
+        assert result is None
+
+    def test_no_airports_returns_none(self):
+        """A response with no _airports should return None."""
+        mock_resp = self._make_mock_response({"callsign": "TEST1"})
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+            result = _fetch_route_data("TEST1")
+
+        assert result is None
+
+    def test_single_airport_returns_none(self):
+        """A response with only one airport should return None."""
+        mock_resp = self._make_mock_response({
+            "callsign": "TEST1",
+            "_airports": [
+                {
+                    "icao": "EGLL",
+                    "location": "London",
+                    "countryiso2": "GB",
+                },
+            ],
+        })
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+            result = _fetch_route_data("TEST1")
+
+        assert result is None
+
+    def test_lowercase_callsign_uppercased(self):
+        """Callsign prefix should be uppercased for URL directory."""
+        mock_resp = self._make_mock_response({
+            "callsign": "BAW123",
+            "_airports": [
+                {"icao": "EGLL", "location": "London", "countryiso2": "GB"},
+                {"icao": "OTHH", "location": "Doha", "countryiso2": "QA"},
+            ],
+        })
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp) as mock_get:
+            result = _fetch_route_data("baw123")
+
+        assert result is not None
+        # Verify the URL uses uppercased prefix directory but keeps original callsign
+        call_args = mock_get.call_args
+        assert call_args[0][0] == "https://vrs-standing-data.adsb.lol/routes/BA/baw123"
+
+    def test_callsign_with_whitespace_stripped(self):
+        """Whitespace-padded callsigns should be stripped."""
+        mock_resp = self._make_mock_response({
+            "callsign": "UAL123",
+            "_airports": [
+                {"icao": "EGLL", "location": "London", "countryiso2": "GB"},
+                {"icao": "KJFK", "location": "New York", "countryiso2": "US"},
+            ],
+        })
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp) as mock_get:
+            result = _fetch_route_data("  UAL123  ")
+
+        assert result is not None
+        # Verify the URL uses stripped callsign
+        call_args = mock_get.call_args
+        assert "UAL123" in call_args[0][0]
+        assert "  " not in call_args[0][0]
+
+    def test_unknown_airport_code_returns_none_city(self):
+        """An airport ICAO code not in the lookup table should yield None city."""
+        mock_resp = self._make_mock_response({
+            "callsign": "TEST1",
+            "_airports": [
+                {
+                    "icao": "ZZZZ",
+                    "location": "Nowhere",
+                    "countryiso2": "XX",
+                },
+                {
+                    "icao": "ZZZZ",
+                    "location": "Nowhere",
+                    "countryiso2": "XX",
+                },
+            ],
+        })
+        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+            result = _fetch_route_data("TEST1")
+
+        assert result is not None
+        assert result[ATTR_DEPARTURE_AIRPORT] == "ZZZZ"
+        # ZZZZ is not in the airport lookup table
+        assert result[ATTR_DEPARTURE_CITY] is None

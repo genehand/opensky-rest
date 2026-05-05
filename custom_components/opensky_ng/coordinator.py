@@ -70,6 +70,7 @@ AIRCRAFT_METADATA_CACHE_TTL: timedelta = timedelta(hours=24)
 
 AIRCRAFT_METADATA_API: str = "https://api.airplanes.live/v2/icao"
 PLANESPOTTERS_API: str = "https://api.planespotters.net/pub/photos/reg"
+ROUTE_API: str = "https://vrs-standing-data.adsb.lol/routes"
 
 UPDATE_INTERVAL_AUTH: timedelta = timedelta(seconds=30)
 UPDATE_INTERVAL_ANON: timedelta = timedelta(minutes=5)
@@ -160,8 +161,9 @@ def _convert_aircraft_state(
         aircraft[ATTR_SPEED_KTS] = round(state.velocity * 1.94384, 1)
 
     # Look up departure/arrival from flight cache
-    if flight_cache:
-        cached = flight_cache.get(state.icao24)
+    if flight_cache and state.callsign:
+        cs = state.callsign.strip()
+        cached = flight_cache.get(cs)
         if cached:
             aircraft[ATTR_DEPARTURE_AIRPORT] = cached.get(ATTR_DEPARTURE_AIRPORT)
             aircraft[ATTR_DEPARTURE_CITY] = cached.get(ATTR_DEPARTURE_CITY)
@@ -169,16 +171,49 @@ def _convert_aircraft_state(
             aircraft[ATTR_ARRIVAL_AIRPORT] = cached.get(ATTR_ARRIVAL_AIRPORT)
             aircraft[ATTR_ARRIVAL_CITY] = cached.get(ATTR_ARRIVAL_CITY)
             aircraft[ATTR_ARRIVAL_COUNTRY] = cached.get(ATTR_ARRIVAL_COUNTRY)
-        elif state.callsign:
+        else:
             LOGGER.debug(
-                "No flight cache for %s (callsign=%s, icao24=%s) — "
+                "No route cache for %s (callsign=%s) — "
                 "will be populated by background enrichment",
                 state.icao24,
-                state.callsign.strip(),
-                state.icao24,
+                cs,
             )
 
     return aircraft
+
+
+def _fetch_route_data(callsign: str) -> dict[str, Any] | None:
+    """Fetch route data (departure/arrival airports) from VRS standing data.
+
+    Calls ``https://vrs-standing-data.adsb.lol/routes/{prefix}/{callsign}.json``
+    where ``prefix`` is the first 2 characters of the callsign.
+    Returns a dict with departure/arrival airport codes, city names, and
+    country codes on success, or None on error / not found.
+    """
+    prefix = callsign.strip()[:2].upper()
+    url = f"{ROUTE_API}/{prefix}/{callsign.strip()}.json"
+    try:
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        data = resp.json()
+        airports = data.get("_airports")
+        if not airports or not isinstance(airports, list) or len(airports) < 2:
+            return None
+        dep = airports[0].get("icao")
+        arr = airports[-1].get("icao")
+        return {
+            ATTR_DEPARTURE_AIRPORT: dep,
+            ATTR_DEPARTURE_CITY: _airport_city(dep),
+            ATTR_DEPARTURE_COUNTRY: _airport_country(dep),
+            ATTR_ARRIVAL_AIRPORT: arr,
+            ATTR_ARRIVAL_CITY: _airport_city(arr),
+            ATTR_ARRIVAL_COUNTRY: _airport_country(arr),
+        }
+    except (requests.RequestException, ValueError, KeyError, IndexError) as exc:
+        LOGGER.debug("Route lookup failed for %s: %s", callsign, exc)
+        return None
 
 
 class OpenSkyRestDataUpdateCoordinator(
@@ -233,9 +268,9 @@ class OpenSkyRestDataUpdateCoordinator(
         # Build the bounding box
         self._update_bounding_box(config_entry)
 
-    def _should_fetch_flight(self, icao24: str, now: int) -> bool:
-        """Check whether flight data for this ICAO24 should be refreshed."""
-        cached = self._flight_cache.get(icao24)
+    def _should_fetch_flight(self, callsign: str, now: int) -> bool:
+        """Check whether route data for this callsign should be refreshed."""
+        cached = self._flight_cache.get(callsign)
         if cached is None:
             return True
         last = cached.get("last_updated", 0)
@@ -395,49 +430,45 @@ class OpenSkyRestDataUpdateCoordinator(
     async def _async_enrich_routes(
         self, aircraft_list: list[dict[str, Any]]
     ) -> None:
-        """Background task: fetch flight data for tracked aircraft.
+        """Background task: fetch route data for tracked aircraft.
 
-        Queries ``get_flights_by_aircraft`` for each unique ICAO24 whose
+        Queries the VRS standing data API for each unique callsign whose
         cache is stale and populates ``self._flight_cache``.
         """
-        if self._api is None:
-            return
-
         now = int(datetime.now(timezone.utc).timestamp())
-        icao24s_to_fetch: set[str] = set()
+        callsigns_to_fetch: set[str] = set()
 
         for ac in aircraft_list:
-            icao24 = ac.get(ATTR_ICAO24)
-            if icao24 and self._should_fetch_flight(icao24, now):
-                icao24s_to_fetch.add(icao24)
+            cs = ac.get(ATTR_CALLSIGN)
+            if cs and self._should_fetch_flight(cs, now):
+                callsigns_to_fetch.add(cs)
 
-        if not icao24s_to_fetch:
+        if not callsigns_to_fetch:
             return
 
         LOGGER.debug(
-            "Fetching flight data for %d aircraft: %s",
-            len(icao24s_to_fetch),
-            ", ".join(sorted(icao24s_to_fetch)),
+            "Fetching route data for %d aircraft: %s",
+            len(callsigns_to_fetch),
+            ", ".join(sorted(callsigns_to_fetch)),
         )
-        begin = now - 12 * 3600  # look back 12 hours
 
         tasks = [
             self.hass.async_add_executor_job(
-                self._api.get_flights_by_aircraft, icao24, begin, now
+                _fetch_route_data, cs
             )
-            for icao24 in icao24s_to_fetch
+            for cs in callsigns_to_fetch
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        for icao24, result in zip(icao24s_to_fetch, results):
+        for callsign, result in zip(callsigns_to_fetch, results):
             if isinstance(result, Exception):
-                LOGGER.debug("Flight lookup failed for %s: %s", icao24, result)
+                LOGGER.debug("Route lookup failed for %s: %s", callsign, result)
                 continue
             if not result:
-                LOGGER.debug("No flight data returned for %s (empty result)", icao24)
+                LOGGER.debug("No route data returned for %s", callsign)
                 # Still cache with Nones so we don't retry every cycle
-                self._flight_cache[icao24] = {
+                self._flight_cache[callsign] = {
                     ATTR_DEPARTURE_AIRPORT: None,
                     ATTR_DEPARTURE_CITY: None,
                     ATTR_DEPARTURE_COUNTRY: None,
@@ -448,7 +479,7 @@ class OpenSkyRestDataUpdateCoordinator(
                 }
                 # Clear any stale city data in the aircraft dict in-place
                 for ac in aircraft_list:
-                    if ac.get(ATTR_ICAO24) == icao24:
+                    if ac.get(ATTR_CALLSIGN) == callsign:
                         ac[ATTR_DEPARTURE_AIRPORT] = None
                         ac[ATTR_DEPARTURE_CITY] = None
                         ac[ATTR_DEPARTURE_COUNTRY] = None
@@ -458,45 +489,36 @@ class OpenSkyRestDataUpdateCoordinator(
                         break
                 continue
 
-            # Use the latest flight in the time window
-            flight = result[-1] if len(result) > 1 else result[0]
-            dep = getattr(flight, "estDepartureAirport", None)
-            arr = getattr(flight, "estArrivalAirport", None)
-
-            dep_city = _airport_city(dep)
-            arr_city = _airport_city(arr)
-            dep_country = _airport_country(dep)
-            arr_country = _airport_country(arr)
-
             LOGGER.debug(
-                "Flight enrichment for %s: dep=%s (%s, %s) arr=%s (%s, %s) "
-                "[callsign=%s, flights_in_window=%d]",
-                icao24,
-                dep, dep_city, dep_country,
-                arr, arr_city, arr_country,
-                getattr(flight, "callsign", "?"),
-                len(result),
+                "Route enrichment for %s: dep=%s (%s, %s) arr=%s (%s, %s)",
+                callsign,
+                result[ATTR_DEPARTURE_AIRPORT],
+                result[ATTR_DEPARTURE_CITY],
+                result[ATTR_DEPARTURE_COUNTRY],
+                result[ATTR_ARRIVAL_AIRPORT],
+                result[ATTR_ARRIVAL_CITY],
+                result[ATTR_ARRIVAL_COUNTRY],
             )
 
-            self._flight_cache[icao24] = {
-                ATTR_DEPARTURE_AIRPORT: dep,
-                ATTR_DEPARTURE_CITY: dep_city,
-                ATTR_DEPARTURE_COUNTRY: dep_country,
-                ATTR_ARRIVAL_AIRPORT: arr,
-                ATTR_ARRIVAL_CITY: arr_city,
-                ATTR_ARRIVAL_COUNTRY: arr_country,
+            self._flight_cache[callsign] = {
+                ATTR_DEPARTURE_AIRPORT: result[ATTR_DEPARTURE_AIRPORT],
+                ATTR_DEPARTURE_CITY: result[ATTR_DEPARTURE_CITY],
+                ATTR_DEPARTURE_COUNTRY: result[ATTR_DEPARTURE_COUNTRY],
+                ATTR_ARRIVAL_AIRPORT: result[ATTR_ARRIVAL_AIRPORT],
+                ATTR_ARRIVAL_CITY: result[ATTR_ARRIVAL_CITY],
+                ATTR_ARRIVAL_COUNTRY: result[ATTR_ARRIVAL_COUNTRY],
                 "last_updated": now,
             }
 
             # Update aircraft dict in-place so data propagates immediately
             for ac in aircraft_list:
-                if ac.get(ATTR_ICAO24) == icao24:
-                    ac[ATTR_DEPARTURE_AIRPORT] = dep
-                    ac[ATTR_DEPARTURE_CITY] = dep_city
-                    ac[ATTR_DEPARTURE_COUNTRY] = dep_country
-                    ac[ATTR_ARRIVAL_AIRPORT] = arr
-                    ac[ATTR_ARRIVAL_CITY] = arr_city
-                    ac[ATTR_ARRIVAL_COUNTRY] = arr_country
+                if ac.get(ATTR_CALLSIGN) == callsign:
+                    ac[ATTR_DEPARTURE_AIRPORT] = result[ATTR_DEPARTURE_AIRPORT]
+                    ac[ATTR_DEPARTURE_CITY] = result[ATTR_DEPARTURE_CITY]
+                    ac[ATTR_DEPARTURE_COUNTRY] = result[ATTR_DEPARTURE_COUNTRY]
+                    ac[ATTR_ARRIVAL_AIRPORT] = result[ATTR_ARRIVAL_AIRPORT]
+                    ac[ATTR_ARRIVAL_CITY] = result[ATTR_ARRIVAL_CITY]
+                    ac[ATTR_ARRIVAL_COUNTRY] = result[ATTR_ARRIVAL_COUNTRY]
                     break
 
         # Notify entities so they re-read the updated attributes
@@ -705,5 +727,3 @@ class OpenSkyRestDataUpdateCoordinator(
                     ATTR_CALLSIGN: flight,
                 }
             self.hass.bus.fire(event, event_data)
-
-
