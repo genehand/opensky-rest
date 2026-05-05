@@ -139,6 +139,12 @@ def _convert_aircraft_state(
         ),
     }
 
+    # Look up image URL from aircraft metadata cache
+    if aircraft_metadata_cache:
+        cached = aircraft_metadata_cache.get(state.icao24)
+        if cached:
+            aircraft[ATTR_AIRCRAFT_IMAGE_URL] = cached.get(ATTR_AIRCRAFT_IMAGE_URL)
+
     # Compute derived values
     if state.baro_altitude is not None:
         aircraft[ATTR_ALTITUDE] = state.baro_altitude
@@ -354,10 +360,11 @@ class OpenSkyRestDataUpdateCoordinator(
                     "No image found for %s", icao24
                 )
 
-            self._aircraft_metadata_cache[icao24] = {
-                ATTR_AIRCRAFT_IMAGE_URL: image_url,
-                "last_updated": now,
-            }
+            # Merge into existing cache entry to preserve any registration field
+            if icao24 not in self._aircraft_metadata_cache:
+                self._aircraft_metadata_cache[icao24] = {}
+            self._aircraft_metadata_cache[icao24][ATTR_AIRCRAFT_IMAGE_URL] = image_url
+            self._aircraft_metadata_cache[icao24]["last_updated"] = now
 
             # Update aircraft dict in-place so data propagates immediately
             for ac in aircraft_list:

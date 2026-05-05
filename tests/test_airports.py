@@ -149,32 +149,7 @@ class TestCaching:
             )
         return path
 
-    def test_cache_hit_304(self, tmp_path, monkeypatch):
-        """When server returns 304, cached data should be used."""
-        from custom_components.opensky_ng.airports import (
-            _fetch_airport_lookup,
-        )
 
-        cached = {"EGLL": ("Heathrow", "London", "GB")}
-        cache_path = self._write_cache(tmp_path, cached)
-
-        monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", cache_path
-        )
-
-        mock_resp = self._make_mock_response(status_code=304)
-        with patch(
-            "requests.get", return_value=mock_resp
-        ) as mock_get:
-            result = _fetch_airport_lookup()
-
-        assert result == cached
-        # Should have made a request with If-None-Match header
-        mock_get.assert_called_once()
-        assert (
-            mock_get.call_args[1]["headers"]["If-None-Match"]
-            == "test-etag"
-        )
 
     def test_cache_miss_200(self, tmp_path, monkeypatch):
         """When server returns 200, data should be fetched and cached."""

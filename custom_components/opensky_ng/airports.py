@@ -10,8 +10,6 @@ The CSV contains ~34,000 airports with columns:
 Caching strategy:
   - First boot: fetch from network, parse, save to disk with ETag.
   - Subsequent boots: send ``If-None-Match`` with cached ETag.
-    * 304 Not Modified → use cached dict from disk.
-    * 200 OK → new data, overwrite cache + ETag.
   - Fallback for no ETag on server: file mtime + 7-day TTL safety net.
   - If the fetch fails, an empty dict is returned — the integration
     still works, just without city/country enrichment for
@@ -174,8 +172,8 @@ def _fetch_airport_lookup() -> dict[str, tuple[str, str, str]]:
     """Download and parse the airports CSV into a lookup dict.
 
     Uses ETag-based conditional requests when a cache is available:
-    - 304 → return cached dict from disk
-    - 200 → parse, save to disk, return
+    - 200 with matching ETag → skip re-parse, return cached data
+    - 200 with different ETag → new data, parse and cache
     - error → fall back to cached data or empty dict
     """
     # Try to load cached info first
@@ -198,29 +196,28 @@ def _fetch_airport_lookup() -> dict[str, tuple[str, str, str]]:
         headers["If-None-Match"] = cached_etag
 
     try:
-        resp = requests.get(AIRPORTS_URL, headers=headers, timeout=30)
-
-        if resp.status_code == 304:
-            # Not modified — use cached data
-            if cached_data is not None:
-                LOGGER.info(
-                    "Airport data unchanged (ETag=%s), using cached copy "
-                    "(%d airports)",
-                    cached_etag,
-                    len(cached_data),
-                )
-                return cached_data
-            # Edge case: ETag in cache but data somehow lost
-            LOGGER.warning(
-                "Got 304 but no cached data — will re-fetch"
-            )
+        resp = requests.get(AIRPORTS_URL, headers=headers, timeout=30, stream=True)
 
         resp.raise_for_status()
-        text = _decompress(resp.content)
-        lookup = _parse_response(text)
 
         # Extract ETag from response (strip any surrounding quotes)
         etag = resp.headers.get("ETag", "").strip('"')
+
+        # If server ignores If-None-Match but returns the same ETag,
+        # skip the expensive parse + save and just use cached data.
+        if cached_etag and etag and etag == cached_etag:
+            resp.close()
+            LOGGER.debug(
+                "Airport data unchanged (ETag=%s), using cached copy "
+                "(%d airports)",
+                cached_etag,
+                len(cached_data),
+            )
+            return cached_data
+
+        text = _decompress(resp.content)
+        lookup = _parse_response(text)
+
         if etag:
             _save_cache(lookup, etag)
             LOGGER.info(
