@@ -83,7 +83,6 @@ from custom_components.opensky_ng.const import (
     ATTR_ON_GROUND,
     ATTR_ORIGIN_COUNTRY,
     ATTR_POSITION_SOURCE_NAME,
-    ATTR_REGISTRATION,
     ATTR_SPEED_KTS,
     ATTR_TRUE_TRACK,
 )

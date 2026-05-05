@@ -135,7 +135,6 @@ class TestOpenSkyRestSensor:
             {
                 "callsign": "UAL123",
                 "airline": "United Airlines",
-                "registration": "N12345",
                 "aircraft_image_url": "https://t.plnspttrs.net/40667/1833758_ce6219854b_280.jpg",
                 "altitude_ft": 35_000.0,
                 "speed_kts": 485.0,
@@ -176,7 +175,6 @@ class TestOpenSkyRestSensor:
         assert len(attrs["aircraft"]) == 1
         assert attrs["aircraft"][0]["callsign"] == "UAL123"
         assert attrs["aircraft"][0]["airline"] == "United Airlines"
-        assert attrs["aircraft"][0]["registration"] == "N12345"
         assert attrs["aircraft"][0]["image_url"] == "https://t.plnspttrs.net/40667/1833758_ce6219854b_280.jpg"
         assert attrs["avg_altitude_ft"] == 35_000.0
         assert attrs["avg_speed_kts"] == 485.0

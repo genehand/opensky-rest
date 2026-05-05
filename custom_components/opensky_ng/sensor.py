@@ -19,7 +19,6 @@ from .const import (
     ATTR_COUNT,
     ATTR_DEPARTURE_CITY,
     ATTR_DEPARTURE_COUNTRY,
-    ATTR_REGISTRATION,
     ATTR_STATS,
     DOMAIN,
     MANUFACTURER,
@@ -97,7 +96,6 @@ class OpenSkyRestSensor(
             summary = {
                 "callsign": ac.get("callsign"),
                 "airline": ac.get("airline"),
-                "registration": ac.get(ATTR_REGISTRATION),
                 "image_url": ac.get(ATTR_AIRCRAFT_IMAGE_URL),
                 "altitude_ft": ac.get("altitude_ft"),
                 "speed_kts": ac.get("speed_kts"),

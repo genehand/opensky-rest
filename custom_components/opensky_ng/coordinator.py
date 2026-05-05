@@ -43,7 +43,6 @@ from .const import (
     ATTR_ORIGIN_COUNTRY,
     ATTR_POSITION_SOURCE,
     ATTR_POSITION_SOURCE_NAME,
-    ATTR_REGISTRATION,
     ATTR_SENSORS,
     ATTR_SPEED_KTS,
     ATTR_SPI,
@@ -68,8 +67,7 @@ from .const import (
 FLIGHT_CACHE_TTL: timedelta = timedelta(hours=1)
 AIRCRAFT_METADATA_CACHE_TTL: timedelta = timedelta(hours=24)
 
-AIRCRAFT_METADATA_API: str = "https://api.airplanes.live/v2/icao"
-PLANESPOTTERS_API: str = "https://api.planespotters.net/pub/photos/reg"
+PLANESPOTTERS_API: str = "https://api.planespotters.net/pub/photos/hex"
 ROUTE_API: str = "https://vrs-standing-data.adsb.lol/routes"
 
 UPDATE_INTERVAL_AUTH: timedelta = timedelta(seconds=30)
@@ -140,14 +138,6 @@ def _convert_aircraft_state(
             state.position_source, "Unknown"
         ),
     }
-
-    # Look up registration from aircraft metadata cache
-    registration = None
-    if aircraft_metadata_cache:
-        cached = aircraft_metadata_cache.get(state.icao24)
-        if cached:
-            registration = cached.get(ATTR_REGISTRATION)
-    aircraft[ATTR_REGISTRATION] = registration
 
     # Compute derived values
     if state.baro_altitude is not None:
@@ -285,48 +275,16 @@ class OpenSkyRestDataUpdateCoordinator(
         return (now - last) > AIRCRAFT_METADATA_CACHE_TTL.total_seconds()
 
     @staticmethod
-    def _fetch_aircraft_metadata(icao24: str) -> dict[str, Any] | None:
-        """Fetch aircraft metadata (registration, type, etc.) from airplanes.live.
-
-        Calls ``https://api.airplanes.live/v2/icao/{icao24}`` which returns
-        JSON with registration (``r``), aircraft type (``t``), operator
-        (``ownOp``), etc.  Returns a dict with ``registration`` key on
-        success, or None on error / not found.
-        """
-        try:
-            resp = requests.get(
-                f"{AIRCRAFT_METADATA_API}/{icao24}",
-                timeout=15,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            if not data:
-                return None
-            ac_list = data.get("ac")
-            if not ac_list or not isinstance(ac_list, list) or len(ac_list) == 0:
-                return None
-            ac = ac_list[0]
-            registration = ac.get("r")
-            if not registration:
-                return None
-            return {
-                ATTR_REGISTRATION: registration,
-            }
-        except (requests.RequestException, ValueError, KeyError, IndexError) as exc:
-            LOGGER.debug("Metadata lookup failed for %s: %s", icao24, exc)
-            return None
-
-    @staticmethod
-    def _fetch_aircraft_image(registration: str) -> str | None:
+    def _fetch_aircraft_image(icao24: str) -> str | None:
         """Fetch the first aircraft photo URL from Planespotters.net.
 
-        Calls ``https://api.planespotters.net/pub/photos/reg/{reg}`` and
+        Calls ``https://api.planespotters.net/pub/photos/hex/{icao24}`` and
         returns the ``thumbnail_large.src`` of the first photo, or None
         if no photos are found or on error.
         """
         try:
             resp = requests.get(
-                f"{PLANESPOTTERS_API}/{registration}",
+                f"{PLANESPOTTERS_API}/{icao24}",
                 timeout=15,
             )
             resp.raise_for_status()
@@ -338,15 +296,15 @@ class OpenSkyRestDataUpdateCoordinator(
             thumbnail = first.get("thumbnail_large", {})
             return thumbnail.get("src")
         except (requests.RequestException, ValueError, KeyError, IndexError) as exc:
-            LOGGER.debug("Image lookup failed for %s: %s", registration, exc)
+            LOGGER.debug("Image lookup failed for %s: %s", icao24, exc)
             return None
 
     async def _async_enrich_aircraft_metadata(
         self, aircraft_list: list[dict[str, Any]]
     ) -> None:
-        """Background task: fetch aircraft metadata for tracked aircraft.
+        """Background task: fetch aircraft photo URLs for tracked aircraft.
 
-        Queries ``_fetch_aircraft_metadata`` for each unique ICAO24 whose
+        Queries ``_fetch_aircraft_image`` for each unique ICAO24 whose
         cache is stale and populates ``self._aircraft_metadata_cache``.
         """
         now = int(datetime.now(timezone.utc).timestamp())
@@ -360,59 +318,43 @@ class OpenSkyRestDataUpdateCoordinator(
         if not icao24s_to_fetch:
             return
 
+        # Use a stable list so zip() ordering is consistent across two iterations
+        icao24_list = sorted(icao24s_to_fetch)
+
         LOGGER.debug(
-            "Fetching aircraft metadata for %d aircraft: %s",
-            len(icao24s_to_fetch),
-            ", ".join(sorted(icao24s_to_fetch)),
+            "Fetching aircraft images for %d aircraft: %s",
+            len(icao24_list),
+            ", ".join(icao24_list),
         )
 
         tasks = [
             self.hass.async_add_executor_job(
-                self._fetch_aircraft_metadata, icao24
+                self._fetch_aircraft_image, icao24
             )
-            for icao24 in icao24s_to_fetch
+            for icao24 in icao24_list
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        for icao24, result in zip(icao24s_to_fetch, results):
+        for icao24, result in zip(icao24_list, results):
             if isinstance(result, Exception):
-                LOGGER.debug("Metadata lookup failed for %s: %s", icao24, result)
+                LOGGER.debug("Image lookup failed for %s: %s", icao24, result)
                 continue
 
-            registration = None
-            if result and isinstance(result, dict):
-                registration = result.get(ATTR_REGISTRATION)
+            image_url = None if result is None else result
 
-            if registration:
+            if image_url:
                 LOGGER.debug(
-                    "Aircraft metadata for %s: registration=%s",
+                    "Aircraft %s: image=%s",
                     icao24,
-                    registration,
+                    image_url,
                 )
             else:
                 LOGGER.debug(
-                    "No registration found for %s (result=%s)", icao24, result
+                    "No image found for %s", icao24
                 )
 
-            # Fetch image if we have a registration
-            image_url = None
-            if registration:
-                image_url = self._fetch_aircraft_image(registration)
-                if image_url:
-                    LOGGER.debug(
-                        "Aircraft %s: registration=%s, image=%s",
-                        icao24,
-                        registration,
-                        image_url,
-                    )
-                else:
-                    LOGGER.debug(
-                        "No image found for %s (registration=%s)", icao24, registration
-                    )
-
             self._aircraft_metadata_cache[icao24] = {
-                ATTR_REGISTRATION: registration,
                 ATTR_AIRCRAFT_IMAGE_URL: image_url,
                 "last_updated": now,
             }
@@ -420,7 +362,6 @@ class OpenSkyRestDataUpdateCoordinator(
             # Update aircraft dict in-place so data propagates immediately
             for ac in aircraft_list:
                 if ac.get(ATTR_ICAO24) == icao24:
-                    ac[ATTR_REGISTRATION] = registration
                     ac[ATTR_AIRCRAFT_IMAGE_URL] = image_url
                     break
 
@@ -705,7 +646,6 @@ class OpenSkyRestDataUpdateCoordinator(
                 event_data = {
                     ATTR_CALLSIGN: flight,
                     ATTR_AIRLINE: data.get(ATTR_AIRLINE),
-                    ATTR_REGISTRATION: data.get(ATTR_REGISTRATION),
                     ATTR_ALTITUDE: data.get(ATTR_ALTITUDE),
                     ATTR_ALTITUDE_FT: data.get(ATTR_ALTITUDE_FT),
                     ATTR_LATITUDE: data.get(ATTR_LATITUDE),
