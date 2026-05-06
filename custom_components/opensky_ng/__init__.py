@@ -14,6 +14,11 @@ from .coordinator import OpenSkyRestDataUpdateCoordinator
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
+def _resolve_airport_lookup() -> None:
+    """Resolve AIRPORT_LOOKUP in an executor thread to avoid blocking the event loop."""
+    _ = airports.AIRPORT_LOOKUP
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up OpenSky REST from a config entry."""
     # Set cache path before resolving AIRPORT_LOOKUP so the file cache
@@ -25,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Force eager resolution of the airport lookup table so it is ready
     # for the very first poll cycle.  This triggers the lazy __getattr__
     # with CACHE_PATH already set.
-    _ = airports.AIRPORT_LOOKUP
+    await hass.async_add_executor_job(_resolve_airport_lookup)
 
     coordinator = OpenSkyRestDataUpdateCoordinator(hass, entry)
 
