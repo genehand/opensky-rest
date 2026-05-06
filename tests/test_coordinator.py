@@ -335,7 +335,7 @@ class TestFetchingEnabledFlag:
             pass
 
     def test_empty_result_structure(self):
-        """_empty_result should return count=0, empty aircraft list, and zero stats."""
+        """_async_update_data should return count=0 and empty aircraft list."""
         import importlib
         import asyncio
 
@@ -347,15 +347,13 @@ class TestFetchingEnabledFlag:
             result = asyncio.run(dummy._async_update_data())
             assert result["count"] == 0
             assert result["aircraft"] == []
-            assert result["stats"]["total"] == 0
         else:
             # Mocked class — verify constants are correct instead
             from custom_components.opensky_ng.const import (
-                ATTR_COUNT, ATTR_AIRCRAFT, ATTR_STATS,
+                ATTR_COUNT, ATTR_AIRCRAFT,
             )
             assert ATTR_COUNT == "count"
             assert ATTR_AIRCRAFT == "aircraft"
-            assert ATTR_STATS == "stats"
 
 
 class TestFetchRouteData:

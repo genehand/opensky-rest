@@ -130,7 +130,7 @@ class TestOpenSkyRestSensor:
         assert sensor.native_value == 5
 
     def test_extra_state_attributes_structure(self):
-        """Attributes should include aircraft list and stats."""
+        """Attributes should include aircraft list."""
         aircraft = [
             {
                 "callsign": "UAL123",
@@ -148,21 +148,10 @@ class TestOpenSkyRestSensor:
                 "icao24": "abc123",
             }
         ]
-        stats = {
-            "avg_altitude_ft": 35_000.0,
-            "avg_speed_kts": 485.0,
-            "max_speed_kts": 500.0,
-            "highest_callsign": "UAL123",
-            "highest_altitude_ft": 35_000.0,
-            "fastest_callsign": "UAL123",
-            "fastest_speed_kts": 500.0,
-            "airlines": {"United Airlines": 1},
-        }
         coordinator = self._make_mock_coordinator(
             data={
                 "count": 1,
                 "aircraft": aircraft,
-                "stats": stats,
             }
         )
         config_entry = MagicMock()
@@ -171,16 +160,10 @@ class TestOpenSkyRestSensor:
         sensor = OpenSkyRestSensor(coordinator, config_entry)
         attrs = sensor.extra_state_attributes
 
-        assert attrs["total_aircraft"] == 1
         assert len(attrs["aircraft"]) == 1
         assert attrs["aircraft"][0]["callsign"] == "UAL123"
         assert attrs["aircraft"][0]["airline"] == "United Airlines"
         assert attrs["aircraft"][0]["image_url"] == "https://t.plnspttrs.net/40667/1833758_ce6219854b_280.jpg"
-        assert attrs["avg_altitude_ft"] == 35_000.0
-        assert attrs["avg_speed_kts"] == 485.0
-        assert attrs["highest_aircraft"] == "UAL123"
-        assert attrs["fastest_aircraft"] == "UAL123"
-        assert attrs["airlines"] == {"United Airlines": 1}
 
     def test_extra_state_attributes_no_data(self):
         """When there is no data, attributes should be empty."""
@@ -201,7 +184,6 @@ class TestOpenSkyRestSensor:
 
         sensor = OpenSkyRestSensor(coordinator, config_entry)
         attrs = sensor.extra_state_attributes
-        assert attrs["total_aircraft"] == 0
         assert attrs["aircraft"] == []
 
     def test_sensor_attribution(self):

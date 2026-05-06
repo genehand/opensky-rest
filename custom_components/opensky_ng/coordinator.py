@@ -47,7 +47,6 @@ from .const import (
     ATTR_SPEED_KTS,
     ATTR_SPI,
     ATTR_SQUAWK,
-    ATTR_STATS,
     ATTR_TIME_POSITION,
     ATTR_TRUE_TRACK,
     ATTR_VELOCITY,
@@ -502,7 +501,7 @@ class OpenSkyRestDataUpdateCoordinator(
         """Fetch state vectors from OpenSky and return structured data."""
         if not self.fetching_enabled:
             LOGGER.debug("OpenSky REST fetching is disabled, skipping update")
-            return self._empty_result()
+            return {ATTR_COUNT: 0, ATTR_AIRCRAFT: []}
 
         try:
             states = await self.hass.async_add_executor_job(
@@ -559,9 +558,6 @@ class OpenSkyRestDataUpdateCoordinator(
 
         self._previously_tracked = currently_tracked
 
-        # Compute statistics
-        stats = self._compute_stats(all_aircraft)
-
         # Spawn background enrichments (don't block the main update)
         self.hass.async_create_task(self._async_enrich_routes(all_aircraft))
         self.hass.async_create_task(
@@ -571,73 +567,6 @@ class OpenSkyRestDataUpdateCoordinator(
         return {
             ATTR_COUNT: len(currently_tracked),
             ATTR_AIRCRAFT: all_aircraft,
-            ATTR_STATS: stats,
-        }
-
-    def _empty_result(self) -> dict[str, Any]:
-        """Return an empty result structure."""
-        return {
-            ATTR_COUNT: 0,
-            ATTR_AIRCRAFT: [],
-            ATTR_STATS: {
-                "total": 0,
-                "avg_altitude_ft": None,
-                "max_speed_kts": None,
-                "avg_speed_kts": None,
-                "highest_callsign": None,
-                "fastest_callsign": None,
-                "airlines": {},
-            },
-        }
-
-    def _compute_stats(
-        self, aircraft_list: list[dict[str, Any]]
-    ) -> dict[str, Any]:
-        """Compute aggregate statistics from current aircraft data."""
-        if not aircraft_list:
-            return self._empty_result()[ATTR_STATS]
-
-        altitudes_ft = [
-            a[ATTR_ALTITUDE_FT]
-            for a in aircraft_list
-            if a.get(ATTR_ALTITUDE_FT) is not None
-        ]
-        speeds_kts = [
-            a[ATTR_SPEED_KTS]
-            for a in aircraft_list
-            if a.get(ATTR_SPEED_KTS) is not None
-        ]
-        airlines: dict[str, int] = {}
-        for a in aircraft_list:
-            al = a.get(ATTR_AIRLINE) or "Unknown"
-            airlines[al] = airlines.get(al, 0) + 1
-
-        # Top aircraft
-        highest = max(
-            aircraft_list,
-            key=lambda a: a.get(ATTR_ALTITUDE_FT) or 0,
-        )
-        fastest = max(
-            aircraft_list,
-            key=lambda a: a.get(ATTR_SPEED_KTS) or 0,
-        )
-
-        return {
-            "total": len(aircraft_list),
-            "avg_altitude_ft": round(sum(altitudes_ft) / len(altitudes_ft), 0)
-            if altitudes_ft
-            else None,
-            "max_speed_kts": max(speeds_kts) if speeds_kts else None,
-            "avg_speed_kts": round(sum(speeds_kts) / len(speeds_kts), 1)
-            if speeds_kts
-            else None,
-            "highest_callsign": highest.get(ATTR_CALLSIGN),
-            "highest_altitude_ft": highest.get(ATTR_ALTITUDE_FT),
-            "fastest_callsign": fastest.get(ATTR_CALLSIGN),
-            "fastest_speed_kts": fastest.get(ATTR_SPEED_KTS),
-            "airlines": dict(
-                sorted(airlines.items(), key=lambda x: x[1], reverse=True)[:20]
-            ),
         }
 
     def _handle_boundary(

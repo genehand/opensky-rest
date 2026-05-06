@@ -19,7 +19,6 @@ from .const import (
     ATTR_COUNT,
     ATTR_DEPARTURE_CITY,
     ATTR_DEPARTURE_COUNTRY,
-    ATTR_STATS,
     DOMAIN,
     MANUFACTURER,
     TRANSLATION_KEY_FLIGHTS,
@@ -116,20 +115,9 @@ class OpenSkyRestSensor(
 
         attrs: dict[str, Any] = {
             "aircraft": aircraft_summary,
-            "total_aircraft": len(aircraft_summary),
         }
 
-        # Add statistics
-        stats = data.get(ATTR_STATS, {})
-        if stats:
-            attrs["avg_altitude_ft"] = stats.get("avg_altitude_ft")
-            attrs["avg_speed_kts"] = stats.get("avg_speed_kts")
-            attrs["max_speed_kts"] = stats.get("max_speed_kts")
-            attrs["highest_aircraft"] = stats.get("highest_callsign")
-            attrs["highest_altitude_ft"] = stats.get("highest_altitude_ft")
-            attrs["fastest_aircraft"] = stats.get("fastest_callsign")
-            attrs["fastest_speed_kts"] = stats.get("fastest_speed_kts")
-            attrs["airlines"] = stats.get("airlines", {})
+        attrs["attribution"] = "Data from the OpenSky Network, Virtual Radar Server, and Planespotters.net"
 
         return attrs
 
