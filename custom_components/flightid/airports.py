@@ -97,11 +97,6 @@ def _save_cache(
                 },
                 fh,
             )
-        LOGGER.info(
-            "Airport cache saved (%s, %d airports)",
-            f"ETag={etag}" if etag else "no-etag",
-            len(data),
-        )
     except OSError as exc:
         LOGGER.debug(
             "Failed to write airport cache to %s: %s", CACHE_PATH, exc

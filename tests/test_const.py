@@ -8,7 +8,6 @@ from custom_components.flightid.const import (
     DOMAIN,
     MANUFACTURER,
     POSITION_SOURCE_MAP,
-    TRANSLATION_KEY_FLIGHTS,
 )
 
 
@@ -116,6 +115,3 @@ class TestBasicConstants:
 
     def test_manufacturer(self):
         assert MANUFACTURER == "FlightID"
-
-    def test_translation_key(self):
-        assert TRANSLATION_KEY_FLIGHTS == "flights"

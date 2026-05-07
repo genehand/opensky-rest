@@ -4,7 +4,7 @@
 
 This project provides real-time aircraft tracking data from the [OpenSky Network](https://opensky-network.org), Virtual Radar Server, and Planespotters.net. It wraps the official [`opensky-api`](https://github.com/openskynetwork/opensky-api) Python library (v1.4.0) in HA's `async_add_executor_job` pattern to keep the event loop responsive.
 
-The integration monitors a configurable geographic area (bounding box defined by lat/lon/radius) and exposes a sensor with a list of aircraft including rich attributes (callsign, airline, registration, altitude, speed, heading, origin country, Planespotters link, etc). It fires events when aircraft enter or leave the monitored airspace.
+The integration monitors a configurable geographic area (bounding box defined by lat/lon/radius) and exposes a sensor with a list of aircraft including rich attributes (callsign, airline, altitude, speed, heading, origin country, aircraft image URL, etc). It fires events when aircraft enter or leave the monitored airspace.
 
 ## Directory Structure
 
@@ -49,9 +49,9 @@ Each aircraft's attributes include `departure_city`, `departure_country`, `arriv
 
 **API credit impact**: Each `get_flights_by_aircraft` call costs 1 credit per aircraft. With 1-hour caching and 30 unique aircraft/hour, this adds ~30 credits/hour to the main state vector call. Authenticated users (4,000+ credits/day) can comfortably use this.
 
-### Aircraft registration & Planespotters links
+### Aircraft image URLs
 
-Each aircraft's attributes include a `registration` field (tail number like "N12345") resolved from the aircraft's ICAO24 transponder code via the [airplanes.live](https://api.airplanes.live) public API (`https://api.airplanes.live/v2/icao/{icao24}`). A background task calls this endpoint for each new aircraft entering the monitored area and caches the results for 24 hours (registration rarely changes per airframe). A `image_url` field is also provided, linking to `https://t.plnspttrs.net/` for easy photo lookup. Registration data becomes available within 1-2 poll cycles after first detection.
+Each aircraft's attributes include an `aircraft_image_url` field resolved from the [Planespotters.net](https://planespotters.net) public API (`https://api.planespotters.net/pub/photos/hex/{icao24}`). A background task calls this endpoint for each unique ICAO24 whose cache is stale and caches the first photo's thumbnail URL for 24 hours (aircraft photos rarely change). The image URL is stored in `_aircraft_metadata_cache` and merged into the aircraft dict in-place. Image data becomes available within 1-2 poll cycles after first detection.
 
 ## Architecture & Data Flow
 
@@ -68,7 +68,7 @@ FlightIdDataUpdateCoordinator (async)
     │   ├── convert StateVectors → dicts (alt_ft, speed_kts, airline name, category name)
     │   ├── compute entry/exit sets → fire HA events
     │   ├── spawn background flight enrichment (get_flights_by_aircraft)
-    │   ├── spawn background aircraft metadata enrichment (get registration)
+    │   ├── spawn background aircraft metadata enrichment (get image URLs)
     │   └── return {count, aircraft[]}
     └── data → sensors read via self.coordinator.data
 FlightIdSensor (CoordinatorEntity)
@@ -141,7 +141,6 @@ Bounding box area = lat_range × lon_range (in square degrees):
   - The library provides: `OpenSkyApi`, `TokenManager`, `StateVector`, `OpenSkyStates`, `FlightData`, `FlightTrack`, `Waypoint`
   - We only use `OpenSkyApi`, `TokenManager`, `OpenSkyStates`, and `StateVector`
 - **HA Core**: Standard HA patterns (`DataUpdateCoordinator`, `CoordinatorEntity`, `ConfigFlow`)
-- **External API**: [airplanes.live](https://api.airplanes.live) — free, public API for ICAO24 → registration lookups (no API key required)
 
 ## Tests
 

@@ -21,7 +21,6 @@ from .const import (
     ATTR_DEPARTURE_COUNTRY,
     DOMAIN,
     MANUFACTURER,
-    TRANSLATION_KEY_FLIGHTS,
 )
 from .coordinator import FlightIdDataUpdateCoordinator
 
@@ -51,11 +50,10 @@ class FlightIdSensor(
     """Representation of a flightID sensor."""
 
     _attr_attribution = (
-        "Information provided by the OpenSky Network (https://opensky-network.org)"
+        "Data from the OpenSky Network, Virtual Radar Server, and Planespotters.net"
     )
     _attr_has_entity_name = True
     _attr_name = None
-    _attr_translation_key = TRANSLATION_KEY_FLIGHTS
     _attr_native_unit_of_measurement = "flights"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
@@ -116,8 +114,6 @@ class FlightIdSensor(
         attrs: dict[str, Any] = {
             "aircraft": aircraft_summary,
         }
-
-        attrs["attribution"] = "Data from the OpenSky Network, Virtual Radar Server, and Planespotters.net"
 
         return attrs
 

@@ -59,7 +59,6 @@ ATTR_ARRIVAL_CITY: Final = "arrival_city"
 ATTR_ARRIVAL_COUNTRY: Final = "arrival_country"
 
 # Sensor/switch translations
-TRANSLATION_KEY_FLIGHTS: Final = "flights"
 TRANSLATION_KEY_ENABLED: Final = "enabled"
 
 # Category mapping from OpenSky API
