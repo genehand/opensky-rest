@@ -1,5 +1,3 @@
-"""Constants for the OpenSky REST integration."""
-
 from __future__ import annotations
 
 import logging
@@ -9,9 +7,9 @@ from homeassistant.const import Platform
 
 LOGGER = logging.getLogger(__package__)
 
-DOMAIN: Final = "opensky_ng"
-MANUFACTURER: Final = "OpenSky Network"
-DEFAULT_NAME: Final = "OpenSky"
+DOMAIN: Final = "flightid"
+MANUFACTURER: Final = "FlightID"
+DEFAULT_NAME: Final = "FlightID"
 DEFAULT_ALTITUDE: Final = 0
 
 PLATFORMS: Final = [Platform.SENSOR, Platform.SWITCH]
@@ -22,8 +20,8 @@ CONF_CLIENT_ID: Final = "client_id"
 CONF_CLIENT_SECRET: Final = "client_secret"
 
 # Event names
-EVENT_OPENSKY_ENTRY: Final = f"{DOMAIN}_entry"
-EVENT_OPENSKY_EXIT: Final = f"{DOMAIN}_exit"
+EVENT_FLIGHTID_ENTRY: Final = f"{DOMAIN}_entry"
+EVENT_FLIGHTID_EXIT: Final = f"{DOMAIN}_exit"
 
 # Attribute keys
 ATTR_CALLSIGN: Final = "callsign"

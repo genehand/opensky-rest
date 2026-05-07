@@ -1,10 +1,10 @@
 {
-  "domain": "opensky_ng",
-  "name": "OpenSky",
-  "version": "0.2.5",
+  "domain": "flightid",
+  "name": "FlightID",
+  "version": "0.3.0",
   "codeowners": ["@genehand"],
   "config_flow": true,
-  "documentation": "https://github.com/genehand/opensky-ng",
+  "documentation": "https://github.com/genehand/flightID",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "requirements": [

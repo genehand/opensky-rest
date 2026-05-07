@@ -1,18 +1,18 @@
-# OpenSky REST - Home Assistant Custom Integration
+# Flight ID - Home Assistant Integration
 
 ## Overview
 
-This project is a **custom Home Assistant integration** that provides real-time aircraft tracking data from the [OpenSky Network](https://opensky-network.org) REST API. It wraps the official [`opensky-api`](https://github.com/openskynetwork/opensky-api) Python library (v1.4.0) in HA's `async_add_executor_job` pattern to keep the event loop responsive.
+This project provides real-time aircraft tracking data from the [OpenSky Network](https://opensky-network.org), Virtual Radar Server, and Planespotters.net. It wraps the official [`opensky-api`](https://github.com/openskynetwork/opensky-api) Python library (v1.4.0) in HA's `async_add_executor_job` pattern to keep the event loop responsive.
 
-The integration monitors a configurable geographic area (bounding box defined by lat/lon/radius) and exposes a sensor showing the number of aircraft with rich attributes (callsign, airline, registration, altitude, speed, heading, origin country, Planespotters link, etc.). It also fires events when aircraft enter or leave the monitored airspace.
+The integration monitors a configurable geographic area (bounding box defined by lat/lon/radius) and exposes a sensor with a list of aircraft including rich attributes (callsign, airline, registration, altitude, speed, heading, origin country, Planespotters link, etc). It fires events when aircraft enter or leave the monitored airspace.
 
 ## Directory Structure
 
 ```
-opensky-ng/
+flightID/
 ├── AGENTS.md                          # This file
 ├── custom_components/
-│   └── opensky_ng/
+│   └── flightid/
 │       ├── __init__.py                # HA entry point: async_setup_entry / async_unload_entry
 │       ├── manifest.json              # Metadata: domain, version, pip dependency
 │       ├── airports.py                # Airport ICAO → (name, city, country) lookup (fetched live from adsb.lol)
@@ -37,7 +37,7 @@ The official `opensky-api` library uses the synchronous `requests` library. Rath
 
 ### Single sensor with rich attributes
 
-Following the existing `opensky` integration pattern, a single sensor entity (`sensor.opensky_flights`) shows the flight count as its state, with all aircraft data and statistics in `extra_state_attributes`.
+Following the original `opensky` integration pattern, a single sensor entity (`sensor.flightid_flights`) shows the flight count as its state, with all aircraft data in `extra_state_attributes`.
 
 ### Airline callsign lookup
 
@@ -56,41 +56,40 @@ Each aircraft's attributes include a `registration` field (tail number like "N12
 ## Architecture & Data Flow
 
 ```
-OpenSky REST API (cloud)
+OpenSky API (cloud)
     ↕ HTTP (requests, via executor thread)
 opensky_api.OpenSkyApi (sync)
     ↕ async_add_executor_job
-OpenSkyRestDataUpdateCoordinator (async)
+FlightIdDataUpdateCoordinator (async)
     ├── async_config_entry_first_refresh()  ← called on setup
     ├── _async_update_data()                ← called every poll interval
     │   ├── api.get_states(time=0, bbox=...) → OpenSkyStates
     │   ├── filter by altitude
     │   ├── convert StateVectors → dicts (alt_ft, speed_kts, airline name, category name)
     │   ├── compute entry/exit sets → fire HA events
-    │   ├── compute statistics (averages, top-N, airline breakdown)
     │   ├── spawn background flight enrichment (get_flights_by_aircraft)
     │   ├── spawn background aircraft metadata enrichment (get registration)
-    │   └── return {count, aircraft[], stats{}}
+    │   └── return {count, aircraft[]}
     └── data → sensors read via self.coordinator.data
-OpenSkyRestSensor (CoordinatorEntity)
+FlightIdSensor (CoordinatorEntity)
     ├── native_value → count
-    └── extra_state_attributes → aircraft list + stats
+    └── extra_state_attributes → aircraft list
 ```
 
 ## Entities & Events
 
 ### Sensor
 
-- **`sensor.opensky_flights`**: Number of airborne aircraft in the monitored area
+- **`sensor.flightid_flights`**: Number of airborne aircraft in the monitored area
   - State class: `measurement`
   - Unit: `flights`
   - Attributes: full aircraft list (with per-aircraft registration, Planespotters URLs, departure/arrival cities), avg altitude/speed, highest/fastest aircraft, airline breakdown
 
 ### Events
 
-- **`opensky_ng_entry`**: Fired when an aircraft enters the monitored airspace
+- **`flightid_entry`**: Fired when an aircraft enters the monitored airspace (const: `EVENT_FLIGHTID_ENTRY`)
   - Event data: callsign, airline, altitude, position, icao24, origin_country, speed, heading, registration, image_url, departure/arrival airport/city/country
-- **`opensky_ng_exit`**: Fired when an aircraft leaves the monitored airspace
+- **`flightid_exit`**: Fired when an aircraft leaves the monitored airspace (const: `EVENT_FLIGHTID_EXIT`)
   - Same event data structure
 
 ## Configuration
@@ -160,8 +159,7 @@ tests/
 ### Running Tests
 
 ```bash
-source .venv/bin/activate
-PYTHONPATH=".:$PYTHONPATH" python -m pytest tests/ -v
+uv run --no-project python -m pytest tests/ -v
 ```
 
 ### Test Approach
@@ -190,7 +188,7 @@ PYTHONPATH=".:$PYTHONPATH" python -m pytest tests/ -v
 
 ### Mocking Home Assistant
 
-Because the component imports `from homeassistant.X import Y` at module level, you cannot simply `import custom_components.opensky_ng` without `homeassistant` installed. The established pattern is to mock the entire `homeassistant` module tree **before** any component import, using `types.ModuleType` (not `MagicMock`) so that `from X import Y` works:
+Because the component imports `from homeassistant.X import Y` at module level, you cannot simply `import custom_components.flightid` without `homeassistant` installed. The established pattern is to mock the entire `homeassistant` module tree **before** any component import, using `types.ModuleType` (not `MagicMock`) so that `from X import Y` works:
 
 ```python
 # tests/conftest.py — at module level, before any component imports
@@ -251,7 +249,7 @@ for mod_name, mod in {
     sys.modules[mod_name] = mod
 ```
 
-**Key rule**: This must appear at the top of `conftest.py` (or the test file) **before** any `from custom_components.opensky_ng.X import Y` statements.
+**Key rule**: This must appear at the top of `conftest.py` (or the test file) **before** any `from custom_components.flightid.X import Y` statements.
 
 ### Preventing Real Network Calls
 
@@ -280,7 +278,7 @@ Some modules (e.g., `airports.py`) use `__getattr__` for lazy initialization so 
 
 ```python
 # In conftest.py, after the requests.get patch:
-import custom_components.opensky_ng.airports as _airports_mod
+import custom_components.flightid.airports as _airports_mod
 _airports_mod.CACHE_PATH = None  # Disable file cache in tests
 _airports_mod._AIRPORT_LOOKUP_CACHE = {
     "EGLL": ("Heathrow Airport", "London", "GB"),
@@ -297,7 +295,7 @@ For pure functions that don't depend on HA (e.g., `_parse_response`, `_extract_a
 
 ```python
 def test_known_prefix(self):
-    from custom_components.opensky_ng.coordinator import _extract_airline
+    from custom_components.flightid.coordinator import _extract_airline
     assert _extract_airline("UAL123") == "United Airlines"
 ```
 
@@ -308,7 +306,7 @@ def test_known_prefix(self):
 | Mock `homeassistant` | `types.ModuleType` in `conftest.py`, before any component import |
 | Mock `requests` | `patch("requests.get", ...)` at module level in `conftest.py` |
 | Lazy module init | Pre-resolve via `._AIRPORT_LOOKUP_CACHE = {...}` then `_ = mod.AIRPORT_LOOKUP` |
-| Pure function tests | `from custom_components.opensky_ng.X import func` — mocks handle the rest |
+| Pure function tests | `from custom_components.flightid.X import func` — mocks handle the rest |
 | Per-test network mocking | `with patch("requests.get", return_value=mock_resp):` |
 
 ## Coding Style

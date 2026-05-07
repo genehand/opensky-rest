@@ -15,7 +15,7 @@ class TestParseResponse:
 
     def test_parses_csv(self):
         """CSV text should be parsed into a correct lookup dict."""
-        from custom_components.opensky_ng.airports import _parse_response
+        from custom_components.flightid.airports import _parse_response
 
         text = (
             "Code,Name,ICAO,IATA,Location,CountryISO2,Latitude,Longitude,AltitudeFeet\n"
@@ -29,7 +29,7 @@ class TestParseResponse:
 
     def test_skips_empty_lines(self):
         """Empty lines should be skipped without error."""
-        from custom_components.opensky_ng.airports import _parse_response
+        from custom_components.flightid.airports import _parse_response
 
         text = (
             "\n\n"
@@ -41,7 +41,7 @@ class TestParseResponse:
 
     def test_skips_missing_icao(self):
         """Rows without ICAO codes should be skipped."""
-        from custom_components.opensky_ng.airports import _parse_response
+        from custom_components.flightid.airports import _parse_response
 
         # Note: no header row — _parse_response processes all lines
         text = ",Some Airport,,,City,US,0,0,0\n"  # empty ICAO at index 2
@@ -50,7 +50,7 @@ class TestParseResponse:
 
     def test_skips_short_lines(self):
         """Lines with fewer than 9 columns should be skipped."""
-        from custom_components.opensky_ng.airports import _parse_response
+        from custom_components.flightid.airports import _parse_response
 
         text = "EGLL,Heathrow,EGLL"  # only 3 columns
         result = _parse_response(text)
@@ -58,7 +58,7 @@ class TestParseResponse:
 
     def test_strips_whitespace(self):
         """Field values should be stripped of whitespace."""
-        from custom_components.opensky_ng.airports import _parse_response
+        from custom_components.flightid.airports import _parse_response
 
         text = "Code,Name,ICAO,IATA,Location,CountryISO2,Latitude,Longitude,AltitudeFeet\n"
         text += ",  Heathrow  ,  EGLL  , LHR ,  London  ,  GB  , 51.47 , -0.46 , 83\n"
@@ -71,7 +71,7 @@ class TestDecompress:
 
     def test_plain_text(self):
         """Plain text should pass through unchanged."""
-        from custom_components.opensky_ng.airports import _decompress
+        from custom_components.flightid.airports import _decompress
 
         raw = b"Code,Name,ICAO,IATA,Location,CountryISO2,Latitude,Longitude,AltitudeFeet\n"
         result = _decompress(raw)
@@ -82,7 +82,7 @@ class TestDecompress:
         """Gzip-compressed data should be decompressed."""
         import gzip
 
-        from custom_components.opensky_ng.airports import _decompress
+        from custom_components.flightid.airports import _decompress
 
         original = "Code,Name,ICAO,IATA,Location,CountryISO2,Latitude,Longitude,AltitudeFeet\n"
         compressed = gzip.compress(original.encode("utf-8-sig"))
@@ -95,7 +95,7 @@ class TestSerializeData:
 
     def test_serialize_deserialize_roundtrip(self):
         """Serializing and deserializing should preserve data."""
-        from custom_components.opensky_ng.airports import (
+        from custom_components.flightid.airports import (
             _deserialize_data,
             _serialize_data,
         )
@@ -153,7 +153,7 @@ class TestCaching:
 
     def test_cache_miss_200(self, tmp_path, monkeypatch):
         """When server returns 200, data should be fetched and cached."""
-        from custom_components.opensky_ng.airports import (
+        from custom_components.flightid.airports import (
             _fetch_airport_lookup,
         )
         # Write old cache with different data
@@ -161,7 +161,7 @@ class TestCaching:
         cache_path = self._write_cache(tmp_path, old_cache)
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", cache_path
+            "custom_components.flightid.airports.CACHE_PATH", cache_path
         )
 
         new_csv = (
@@ -184,7 +184,7 @@ class TestCaching:
 
     def test_stale_cache_ttl(self, tmp_path, monkeypatch):
         """When cache file is older than 7 days and no ETag, should re-fetch."""
-        from custom_components.opensky_ng.airports import (
+        from custom_components.flightid.airports import (
             _fetch_airport_lookup,
         )
 
@@ -200,7 +200,7 @@ class TestCaching:
             json.dump(info, fh)
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", cache_path
+            "custom_components.flightid.airports.CACHE_PATH", cache_path
         )
 
         new_csv = (
@@ -218,7 +218,7 @@ class TestCaching:
 
     def test_network_error_fallback(self, tmp_path, monkeypatch):
         """When network fails, should fall back to cached data."""
-        from custom_components.opensky_ng.airports import (
+        from custom_components.flightid.airports import (
             _fetch_airport_lookup,
         )
 
@@ -226,7 +226,7 @@ class TestCaching:
         cache_path = self._write_cache(tmp_path, cached)
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", cache_path
+            "custom_components.flightid.airports.CACHE_PATH", cache_path
         )
 
         import requests as requests_mod
@@ -243,12 +243,12 @@ class TestCaching:
 
     def test_network_error_no_cache(self, monkeypatch):
         """When network fails and no cache, should return empty dict."""
-        from custom_components.opensky_ng.airports import (
+        from custom_components.flightid.airports import (
             _fetch_airport_lookup,
         )
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", None
+            "custom_components.flightid.airports.CACHE_PATH", None
         )
 
         import requests as requests_mod
@@ -265,12 +265,12 @@ class TestCaching:
 
     def test_no_cache_path(self, monkeypatch):
         """When CACHE_PATH is None, should always fetch (no file I/O)."""
-        from custom_components.opensky_ng.airports import (
+        from custom_components.flightid.airports import (
             _fetch_airport_lookup,
         )
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", None
+            "custom_components.flightid.airports.CACHE_PATH", None
         )
 
         new_csv = (
@@ -290,10 +290,10 @@ class TestCaching:
 
     def test_cache_path_none_no_file_ops(self, tmp_path, monkeypatch):
         """When CACHE_PATH is None, _save_cache should do nothing."""
-        from custom_components.opensky_ng.airports import _save_cache
+        from custom_components.flightid.airports import _save_cache
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", None
+            "custom_components.flightid.airports.CACHE_PATH", None
         )
 
         # Should not raise, even with non-existent directory
@@ -301,30 +301,30 @@ class TestCaching:
 
     def test_get_cache_info_missing_file(self, monkeypatch):
         """_get_cache_info should return None when cache file doesn't exist."""
-        from custom_components.opensky_ng.airports import _get_cache_info
+        from custom_components.flightid.airports import _get_cache_info
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH",
+            "custom_components.flightid.airports.CACHE_PATH",
             "/nonexistent/path/cache.json",
         )
         assert _get_cache_info() is None
 
     def test_get_cache_info_invalid_json(self, tmp_path, monkeypatch):
         """_get_cache_info should return None for invalid JSON."""
-        from custom_components.opensky_ng.airports import _get_cache_info
+        from custom_components.flightid.airports import _get_cache_info
 
         path = os.path.join(tmp_path, "invalid.json")
         with open(path, "w") as fh:
             fh.write("not json")
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", path
+            "custom_components.flightid.airports.CACHE_PATH", path
         )
         assert _get_cache_info() is None
 
     def test_etag_stripped_of_quotes(self, tmp_path, monkeypatch):
         """ETag headers with surrounding quotes should be stripped."""
-        from custom_components.opensky_ng.airports import (
+        from custom_components.flightid.airports import (
             _fetch_airport_lookup,
         )
 
@@ -332,7 +332,7 @@ class TestCaching:
         cache_path = self._write_cache(tmp_path, cached, etag="old-etag")
 
         monkeypatch.setattr(
-            "custom_components.opensky_ng.airports.CACHE_PATH", cache_path
+            "custom_components.flightid.airports.CACHE_PATH", cache_path
         )
 
         new_csv = (

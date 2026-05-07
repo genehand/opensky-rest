@@ -1,6 +1,6 @@
 {
-  "name": "OpenSky",
-  "filename": "custom_components/opensky_ng",
+  "name": "FlightID",
+  "filename": "custom_components/flightID",
   "homeassistant": "2024.1.0",
   "iot_class": "cloud_polling"
 }

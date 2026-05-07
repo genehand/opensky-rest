@@ -85,10 +85,10 @@ for mod_name, mod in modules.items():
     sys.modules[mod_name] = mod
 
 # Now safe to import from the component
-from custom_components.opensky_ng.sensor import OpenSkyRestSensor
+from custom_components.flightid.sensor import FlightIdSensor
 
 
-class TestOpenSkyRestSensor:
+class TestFlightIdSensor:
     """Tests for the sensor entity."""
 
     def _make_mock_coordinator(self, data: dict[str, Any] | None = None):
@@ -104,7 +104,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         assert sensor.native_value == 0
 
     def test_native_value_empty(self):
@@ -115,7 +115,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         assert sensor.native_value == 0
 
     def test_native_value_with_flights(self):
@@ -126,7 +126,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         assert sensor.native_value == 5
 
     def test_extra_state_attributes_structure(self):
@@ -157,7 +157,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         attrs = sensor.extra_state_attributes
 
         assert len(attrs["aircraft"]) == 1
@@ -171,7 +171,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         assert sensor.extra_state_attributes == {}
 
     def test_extra_state_attributes_empty_aircraft(self):
@@ -182,7 +182,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         attrs = sensor.extra_state_attributes
         assert attrs["aircraft"] == []
 
@@ -192,7 +192,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         assert "OpenSky Network" in sensor._attr_attribution
 
     def test_unique_id_format(self):
@@ -201,8 +201,8 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "entry_abc123"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
-        assert sensor._attr_unique_id == "entry_abc123_opensky_ng"
+        sensor = FlightIdSensor(coordinator, config_entry)
+        assert sensor._attr_unique_id == "entry_abc123_flightid"
 
     def test_entity_picture_with_image(self):
         """entity_picture should return the fastest aircraft's image."""
@@ -226,7 +226,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         # Fastest (UAL123 at 485 kts) should be picked
         assert sensor.entity_picture == "https://t.plnspttrs.net/fast.jpg"
 
@@ -252,7 +252,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         # Fastest has no image, fallback to highest (BAW456)
         assert sensor.entity_picture == "https://t.plnspttrs.net/high.jpg"
 
@@ -262,7 +262,7 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         assert sensor.entity_picture is None
 
     def test_entity_picture_no_aircraft(self):
@@ -273,5 +273,5 @@ class TestOpenSkyRestSensor:
         config_entry = MagicMock()
         config_entry.entry_id = "test_id"
 
-        sensor = OpenSkyRestSensor(coordinator, config_entry)
+        sensor = FlightIdSensor(coordinator, config_entry)
         assert sensor.entity_picture is None

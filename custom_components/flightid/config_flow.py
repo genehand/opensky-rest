@@ -1,4 +1,4 @@
-"""Config flow for OpenSky REST integration."""
+"""Config flow for the flightID integration."""
 
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ from .const import (
 )
 
 
-class OpenSkyRestConfigFlowHandler(ConfigFlow, domain=DOMAIN):
-    """Config flow handler for OpenSky REST."""
+class FlightIdConfigFlowHandler(ConfigFlow, domain=DOMAIN):
+    """Config flow handler for flightID."""
 
     VERSION = 1
 
@@ -36,9 +36,9 @@ class OpenSkyRestConfigFlowHandler(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(
         config_entry: ConfigEntry,
-    ) -> OpenSkyRestOptionsFlowHandler:
+    ) -> FlightIdOptionsFlowHandler:
         """Get the options flow for this handler."""
-        return OpenSkyRestOptionsFlowHandler()
+        return FlightIdOptionsFlowHandler()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -106,8 +106,8 @@ class OpenSkyRestConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         )
 
 
-class OpenSkyRestOptionsFlowHandler(OptionsFlow):
-    """OpenSky REST options flow handler."""
+class FlightIdOptionsFlowHandler(OptionsFlow):
+    """flightID options flow handler."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

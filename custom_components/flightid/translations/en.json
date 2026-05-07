@@ -17,7 +17,7 @@
       "no_authentication": "No credentials provided. Running in anonymous mode with reduced rate limits."
     },
     "abort": {
-      "single_instance_allowed": "Only one OpenSky REST configuration is allowed."
+      "single_instance_allowed": "Only one FlightID configuration is allowed."
     }
   },
   "options": {
@@ -49,27 +49,6 @@
         "state_attributes": {
           "aircraft": {
             "name": "Tracked aircraft"
-          },
-          "total_aircraft": {
-            "name": "Total aircraft"
-          },
-          "avg_altitude_ft": {
-            "name": "Average altitude"
-          },
-          "avg_speed_kts": {
-            "name": "Average speed"
-          },
-          "max_speed_kts": {
-            "name": "Max speed"
-          },
-          "highest_aircraft": {
-            "name": "Highest aircraft"
-          },
-          "fastest_aircraft": {
-            "name": "Fastest aircraft"
-          },
-          "airlines": {
-            "name": "Airlines breakdown"
           }
         }
       }

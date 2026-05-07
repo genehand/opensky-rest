@@ -1,4 +1,4 @@
-"""Switch platform for the OpenSky REST integration.
+"""Switch platform for the flightID integration.
 
 Provides an "Enabled" toggle that pauses/resumes API fetching.
 State is persisted across HA restarts via RestoreEntity.
@@ -22,7 +22,7 @@ from .const import (
     MANUFACTURER,
     TRANSLATION_KEY_ENABLED,
 )
-from .coordinator import OpenSkyRestDataUpdateCoordinator
+from .coordinator import FlightIdDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,21 +35,21 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the OpenSky REST switch platform."""
-    coordinator: OpenSkyRestDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    """Set up the flightID switch platform."""
+    coordinator: FlightIdDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
-            OpenSkyRestEnabledSwitch(coordinator, entry),
+            FlightIdEnabledSwitch(coordinator, entry),
         ],
     )
 
 
-class OpenSkyRestEnabledSwitch(
-    CoordinatorEntity[OpenSkyRestDataUpdateCoordinator],
+class FlightIdEnabledSwitch(
+    CoordinatorEntity[FlightIdDataUpdateCoordinator],
     SwitchEntity,
     RestoreEntity,
 ):
-    """Switch to enable or disable OpenSky REST API fetching.
+    """Switch to enable or disable flightID API fetching.
 
     When turned off the coordinator's ``_async_update_data`` short-circuits
     and returns an empty result, suppressing all API calls, background
@@ -66,12 +66,12 @@ class OpenSkyRestEnabledSwitch(
 
     def __init__(
         self,
-        coordinator: OpenSkyRestDataUpdateCoordinator,
+        coordinator: FlightIdDataUpdateCoordinator,
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"{config_entry.entry_id}_opensky_ng_enabled"
+        self._attr_unique_id = f"{config_entry.entry_id}_flightid_enabled"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{coordinator.config_entry.entry_id}")},
             manufacturer=MANUFACTURER,
@@ -89,14 +89,14 @@ class OpenSkyRestEnabledSwitch(
         if last_state is not None:
             restored = last_state.state == "on"
             _LOGGER.debug(
-                "Restoring OpenSky REST enabled switch state: %s → %s",
+                "Restoring FlightID enabled switch state: %s → %s",
                 last_state.state,
                 restored,
             )
             self._is_on = restored
         else:
             _LOGGER.debug(
-                "No prior state found for OpenSky REST enabled switch; defaulting to %s",
+                "No prior state found for FlightID enabled switch; defaulting to %s",
                 _DEFAULT_ENABLED,
             )
             self._is_on = _DEFAULT_ENABLED
@@ -114,11 +114,11 @@ class OpenSkyRestEnabledSwitch(
         self._is_on = True
         self.coordinator.fetching_enabled = True
         self.async_write_ha_state()
-        _LOGGER.debug("OpenSky REST fetching enabled")
+        _LOGGER.debug("FlightID fetching enabled")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable API fetching."""
         self._is_on = False
         self.coordinator.fetching_enabled = False
         self.async_write_ha_state()
-        _LOGGER.debug("OpenSky REST fetching disabled")
+        _LOGGER.debug("FlightID fetching disabled")

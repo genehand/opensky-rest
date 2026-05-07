@@ -1,4 +1,4 @@
-"""Shared fixtures and test data for OpenSky REST tests."""
+"""Shared fixtures and test data for FlightID tests."""
 
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ _patch.start()
 # Pre-resolve AIRPORT_LOOKUP so that lazy __getattr__ won't trigger
 # network calls during tests.  The conftest's requests.get patch above
 # ensures the fetch gets our empty-CSV mock response.
-import custom_components.opensky_ng.airports as _airports_mod
+import custom_components.flightid.airports as _airports_mod
 _airports_mod.CACHE_PATH = None  # Disable file cache in tests
 _airports_mod._AIRPORT_LOOKUP_CACHE = {
     "EGLL": ("Heathrow Airport", "London", "GB"),

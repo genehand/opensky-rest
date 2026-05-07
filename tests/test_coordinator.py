@@ -61,12 +61,12 @@ for mod_name, mod in modules.items():
     sys.modules[mod_name] = mod
 
 # Now safe to import from the component
-from custom_components.opensky_ng.coordinator import (
+from custom_components.flightid.coordinator import (
     _convert_aircraft_state,
     _extract_airline,
     _fetch_route_data,
 )
-from custom_components.opensky_ng.const import (
+from custom_components.flightid.const import (
     ATTR_AIRLINE,
     ATTR_ALTITUDE,
     ATTR_ALTITUDE_FT,
@@ -321,8 +321,8 @@ class TestFetchingEnabledFlag:
         import importlib
         import inspect
 
-        mod = importlib.import_module("custom_components.opensky_ng.coordinator")
-        coord_class = getattr(mod, "OpenSkyRestDataUpdateCoordinator", None)
+        mod = importlib.import_module("custom_components.flightid.coordinator")
+        coord_class = getattr(mod, "FlightIdDataUpdateCoordinator", None)
         # When the class is a real type, verify the source
         if coord_class is not None and isinstance(coord_class, type):
             src = inspect.getsource(coord_class.__init__)
@@ -339,8 +339,8 @@ class TestFetchingEnabledFlag:
         import importlib
         import asyncio
 
-        mod = importlib.import_module("custom_components.opensky_ng.coordinator")
-        coord_class = getattr(mod, "OpenSkyRestDataUpdateCoordinator", None)
+        mod = importlib.import_module("custom_components.flightid.coordinator")
+        coord_class = getattr(mod, "FlightIdDataUpdateCoordinator", None)
         if coord_class is not None and isinstance(coord_class, type):
             dummy = object.__new__(coord_class)
             dummy.fetching_enabled = False
@@ -349,7 +349,7 @@ class TestFetchingEnabledFlag:
             assert result["aircraft"] == []
         else:
             # Mocked class — verify constants are correct instead
-            from custom_components.opensky_ng.const import (
+            from custom_components.flightid.const import (
                 ATTR_COUNT, ATTR_AIRCRAFT,
             )
             assert ATTR_COUNT == "count"
@@ -389,7 +389,7 @@ class TestFetchRouteData:
                 },
             ],
         })
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp):
             result = _fetch_route_data("BAW123")
 
         assert result is not None
@@ -429,7 +429,7 @@ class TestFetchRouteData:
                 },
             ],
         })
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp):
             result = _fetch_route_data("SWA1")
 
         assert result is not None
@@ -443,7 +443,7 @@ class TestFetchRouteData:
     def test_not_found_returns_none(self):
         """A 404 should return None (callsign not in standing data)."""
         mock_resp = self._make_mock_response({}, status_code=404)
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp):
             result = _fetch_route_data("ZZZ999")
 
         assert result is None
@@ -455,7 +455,7 @@ class TestFetchRouteData:
         mock_resp = MagicMock()
         mock_resp.status_code = 500
         mock_resp.raise_for_status.side_effect = requests_mod.HTTPError("500 Server Error")
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp):
             result = _fetch_route_data("BAW123")
 
         assert result is None
@@ -463,7 +463,7 @@ class TestFetchRouteData:
     def test_no_airports_returns_none(self):
         """A response with no _airports should return None."""
         mock_resp = self._make_mock_response({"callsign": "TEST1"})
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp):
             result = _fetch_route_data("TEST1")
 
         assert result is None
@@ -480,7 +480,7 @@ class TestFetchRouteData:
                 },
             ],
         })
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp):
             result = _fetch_route_data("TEST1")
 
         assert result is None
@@ -494,7 +494,7 @@ class TestFetchRouteData:
                 {"icao": "OTHH", "location": "Doha", "countryiso2": "QA"},
             ],
         })
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp) as mock_get:
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp) as mock_get:
             result = _fetch_route_data("baw123")
 
         assert result is not None
@@ -511,7 +511,7 @@ class TestFetchRouteData:
                 {"icao": "KJFK", "location": "New York", "countryiso2": "US"},
             ],
         })
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp) as mock_get:
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp) as mock_get:
             result = _fetch_route_data("  UAL123  ")
 
         assert result is not None
@@ -537,7 +537,7 @@ class TestFetchRouteData:
                 },
             ],
         })
-        with patch("custom_components.opensky_ng.coordinator.requests.get", return_value=mock_resp):
+        with patch("custom_components.flightid.coordinator.requests.get", return_value=mock_resp):
             result = _fetch_route_data("TEST1")
 
         assert result is not None

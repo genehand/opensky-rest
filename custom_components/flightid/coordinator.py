@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for the OpenSky REST integration."""
+"""DataUpdateCoordinator for the flightID integration."""
 
 from __future__ import annotations
 
@@ -57,8 +57,8 @@ from .const import (
     CONF_CLIENT_SECRET,
     DEFAULT_ALTITUDE,
     DOMAIN,
-    EVENT_OPENSKY_ENTRY,
-    EVENT_OPENSKY_EXIT,
+    EVENT_FLIGHTID_ENTRY,
+    EVENT_FLIGHTID_EXIT,
     LOGGER,
     POSITION_SOURCE_MAP,
 )
@@ -211,10 +211,10 @@ def _fetch_route_data(callsign: str) -> dict[str, Any] | None:
         return None
 
 
-class OpenSkyRestDataUpdateCoordinator(
+class FlightIdDataUpdateCoordinator(
     DataUpdateCoordinator[dict[str, Any]]
 ):
-    """Coordinator for fetching OpenSky state data.
+    """Coordinator for fetching flight tracking data.
 
     Wraps the synchronous ``opensky_api.OpenSkyApi`` in an executor to
     keep the event loop responsive.
@@ -500,7 +500,7 @@ class OpenSkyRestDataUpdateCoordinator(
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch state vectors from OpenSky and return structured data."""
         if not self.fetching_enabled:
-            LOGGER.debug("OpenSky REST fetching is disabled, skipping update")
+            LOGGER.debug("FlightID fetching is disabled, skipping update")
             return {ATTR_COUNT: 0, ATTR_AIRCRAFT: []}
 
         try:
@@ -553,8 +553,8 @@ class OpenSkyRestDataUpdateCoordinator(
         if self._previously_tracked is not None:
             entries = currently_tracked - self._previously_tracked
             exits = self._previously_tracked - currently_tracked
-            self._handle_boundary(entries, EVENT_OPENSKY_ENTRY, flight_metadata)
-            self._handle_boundary(exits, EVENT_OPENSKY_EXIT, flight_metadata)
+            self._handle_boundary(entries, EVENT_FLIGHTID_ENTRY, flight_metadata)
+            self._handle_boundary(exits, EVENT_FLIGHTID_EXIT, flight_metadata)
 
         self._previously_tracked = currently_tracked
 

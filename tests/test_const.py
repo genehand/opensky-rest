@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from custom_components.opensky_ng.const import (
+from custom_components.flightid.const import (
     AIRLINE_LOOKUP,
     CATEGORY_MAP,
     DOMAIN,
@@ -112,10 +112,10 @@ class TestBasicConstants:
     """Verify basic constants are set correctly."""
 
     def test_domain(self):
-        assert DOMAIN == "opensky_ng"
+        assert DOMAIN == "flightid"
 
     def test_manufacturer(self):
-        assert MANUFACTURER == "OpenSky Network"
+        assert MANUFACTURER == "FlightID"
 
     def test_translation_key(self):
         assert TRANSLATION_KEY_FLIGHTS == "flights"

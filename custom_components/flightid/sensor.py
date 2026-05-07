@@ -1,4 +1,4 @@
-"""Sensor platform for the OpenSky REST integration."""
+"""Sensor platform for the flightID integration."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from .const import (
     MANUFACTURER,
     TRANSLATION_KEY_FLIGHTS,
 )
-from .coordinator import OpenSkyRestDataUpdateCoordinator
+from .coordinator import FlightIdDataUpdateCoordinator
 
 
 async def async_setup_entry(
@@ -31,13 +31,13 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the OpenSky REST sensor platform."""
-    coordinator: OpenSkyRestDataUpdateCoordinator = hass.data[DOMAIN][
+    """Set up the flightID sensor platform."""
+    coordinator: FlightIdDataUpdateCoordinator = hass.data[DOMAIN][
         entry.entry_id
     ]
     async_add_entities(
         [
-            OpenSkyRestSensor(
+            FlightIdSensor(
                 coordinator,
                 entry,
             )
@@ -45,10 +45,10 @@ async def async_setup_entry(
     )
 
 
-class OpenSkyRestSensor(
-    CoordinatorEntity[OpenSkyRestDataUpdateCoordinator], SensorEntity
+class FlightIdSensor(
+    CoordinatorEntity[FlightIdDataUpdateCoordinator], SensorEntity
 ):
-    """Representation of an OpenSky REST sensor."""
+    """Representation of a flightID sensor."""
 
     _attr_attribution = (
         "Information provided by the OpenSky Network (https://opensky-network.org)"
@@ -61,12 +61,12 @@ class OpenSkyRestSensor(
 
     def __init__(
         self,
-        coordinator: OpenSkyRestDataUpdateCoordinator,
+        coordinator: FlightIdDataUpdateCoordinator,
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"{config_entry.entry_id}_opensky_ng"
+        self._attr_unique_id = f"{config_entry.entry_id}_flightid"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{coordinator.config_entry.entry_id}")},
             manufacturer=MANUFACTURER,

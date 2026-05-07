@@ -1,5 +1,3 @@
-"""The OpenSky REST component."""
-
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
@@ -9,7 +7,7 @@ from homeassistant.helpers import config_validation as cv
 
 from . import airports
 from .const import DOMAIN, PLATFORMS
-from .coordinator import OpenSkyRestDataUpdateCoordinator
+from .coordinator import FlightIdDataUpdateCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -20,11 +18,10 @@ def _resolve_airport_lookup() -> None:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up OpenSky REST from a config entry."""
     # Set cache path before resolving AIRPORT_LOOKUP so the file cache
     # is used instead of a raw network fetch.
     airports.CACHE_PATH = hass.config.path(
-        ".storage", "opensky_ng_airports.json"
+        ".storage", "flightid_airports.json"
     )
 
     # Force eager resolution of the airport lookup table so it is ready
@@ -32,13 +29,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # with CACHE_PATH already set.
     await hass.async_add_executor_job(_resolve_airport_lookup)
 
-    coordinator = OpenSkyRestDataUpdateCoordinator(hass, entry)
+    coordinator = FlightIdDataUpdateCoordinator(hass, entry)
 
     try:
         await coordinator.async_config_entry_first_refresh()
     except Exception as exc:
         raise ConfigEntryNotReady(
-            f"Failed to connect to OpenSky API: {exc}"
+            f"Failed to connect to flightID API: {exc}"
         ) from exc
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
@@ -50,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload OpenSky REST config entry."""
+    """Unload flightID config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 

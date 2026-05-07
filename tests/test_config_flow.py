@@ -16,7 +16,7 @@ import pytest
 class _MockConfigFlow:
     """Stand-in for ConfigFlow that accepts domain= kwarg."""
 
-    DOMAIN = "opensky_ng"
+    DOMAIN = "flightid"
     VERSION = 1
 
     def __init_subclass__(cls, **kwargs):
@@ -119,19 +119,19 @@ for mod_name, mod in modules.items():
     sys.modules[mod_name] = mod
 
 # Now safe to import from the component
-from custom_components.opensky_ng.config_flow import (
-    OpenSkyRestConfigFlowHandler,
-    OpenSkyRestOptionsFlowHandler,
+from custom_components.flightid.config_flow import (
+    FlightIdConfigFlowHandler,
+    FlightIdOptionsFlowHandler,
 )
-from custom_components.opensky_ng.const import DEFAULT_NAME
+from custom_components.flightid.const import DEFAULT_NAME
 
 
-class TestOpenSkyRestConfigFlowHandler:
+class TestFlightIdConfigFlowHandler:
     """Tests for the initial config flow."""
 
-    def _make_flow(self) -> OpenSkyRestConfigFlowHandler:
+    def _make_flow(self) -> FlightIdConfigFlowHandler:
         """Create a config flow handler with a mocked hass."""
-        flow = OpenSkyRestConfigFlowHandler()
+        flow = FlightIdConfigFlowHandler()
         flow.hass = MagicMock()
         flow.hass.config.latitude = 52.52
         flow.hass.config.longitude = 13.405
@@ -140,18 +140,18 @@ class TestOpenSkyRestConfigFlowHandler:
 
     def test_domain(self):
         """The flow handler should be registered under the correct domain."""
-        assert OpenSkyRestConfigFlowHandler.DOMAIN == "opensky_ng"
+        assert FlightIdConfigFlowHandler.DOMAIN == "flightid"
 
     def test_version(self):
         """Config flow version should be 1."""
-        assert OpenSkyRestConfigFlowHandler.VERSION == 1
+        assert FlightIdConfigFlowHandler.VERSION == 1
 
     def test_options_flow_type(self):
         """async_get_options_flow should return an OptionsFlow handler."""
         flow = self._make_flow()
         mock_entry = MagicMock()
         options_flow = flow.async_get_options_flow(mock_entry)
-        assert isinstance(options_flow, OpenSkyRestOptionsFlowHandler)
+        assert isinstance(options_flow, FlightIdOptionsFlowHandler)
 
     @pytest.mark.asyncio
     async def test_initial_no_oauth_success(self):
@@ -225,8 +225,8 @@ class TestOpenSkyRestConfigFlowHandler:
         flow.hass.async_add_executor_job = AsyncMock(return_value=mock_states)
 
         with (
-            patch("custom_components.opensky_ng.config_flow.TokenManager"),
-            patch("custom_components.opensky_ng.config_flow.OpenSkyApi"),
+            patch("custom_components.flightid.config_flow.TokenManager"),
+            patch("custom_components.flightid.config_flow.OpenSkyApi"),
             patch.object(flow, "async_create_entry") as mock_create,
         ):
             await flow.async_step_user(
@@ -259,8 +259,8 @@ class TestOpenSkyRestConfigFlowHandler:
         flow.hass.async_add_executor_job = AsyncMock(return_value=None)
 
         with (
-            patch("custom_components.opensky_ng.config_flow.TokenManager"),
-            patch("custom_components.opensky_ng.config_flow.OpenSkyApi"),
+            patch("custom_components.flightid.config_flow.TokenManager"),
+            patch("custom_components.flightid.config_flow.OpenSkyApi"),
             patch.object(flow, "async_show_form") as mock_show,
         ):
             await flow.async_step_user(
@@ -287,13 +287,13 @@ class TestOpenSkyRestConfigFlowHandler:
         assert schema is not None
 
 
-class TestOpenSkyRestOptionsFlowHandler:
+class TestFlightIdOptionsFlowHandler:
     """Tests for the options flow."""
 
     @pytest.mark.asyncio
     async def test_options_missing_both_oauth_fields(self):
         """Submitting only one OAuth2 field should show an error."""
-        flow = OpenSkyRestOptionsFlowHandler()
+        flow = FlightIdOptionsFlowHandler()
         flow.hass = MagicMock()
         flow.hass.async_add_executor_job = AsyncMock()
 
@@ -313,7 +313,7 @@ class TestOpenSkyRestOptionsFlowHandler:
     @pytest.mark.asyncio
     async def test_options_missing_both_oauth_fields_reverse(self):
         """Submitting only client_secret should also show an error."""
-        flow = OpenSkyRestOptionsFlowHandler()
+        flow = FlightIdOptionsFlowHandler()
         flow.hass = MagicMock()
         flow.hass.async_add_executor_job = AsyncMock()
 
@@ -332,7 +332,7 @@ class TestOpenSkyRestOptionsFlowHandler:
     @pytest.mark.asyncio
     async def test_options_no_oauth_provided(self):
         """No OAuth2 fields should be valid (anonymous mode)."""
-        flow = OpenSkyRestOptionsFlowHandler()
+        flow = FlightIdOptionsFlowHandler()
         flow.hass = MagicMock()
         flow.hass.async_add_executor_job = AsyncMock()
 
@@ -353,7 +353,7 @@ class TestOpenSkyRestOptionsFlowHandler:
     @pytest.mark.asyncio
     async def test_options_with_oauth_success(self):
         """Valid OAuth2 credentials should be accepted."""
-        flow = OpenSkyRestOptionsFlowHandler()
+        flow = FlightIdOptionsFlowHandler()
         flow.hass = MagicMock()
 
         # Mock the async execution — simulate a successful API call
@@ -362,8 +362,8 @@ class TestOpenSkyRestOptionsFlowHandler:
         flow.hass.async_add_executor_job = AsyncMock(return_value=mock_states)
 
         with (
-            patch("custom_components.opensky_ng.config_flow.TokenManager"),
-            patch("custom_components.opensky_ng.config_flow.OpenSkyApi"),
+            patch("custom_components.flightid.config_flow.TokenManager"),
+            patch("custom_components.flightid.config_flow.OpenSkyApi"),
             patch.object(flow, "async_create_entry") as mock_create,
         ):
             result = await flow.async_step_init(
@@ -379,15 +379,15 @@ class TestOpenSkyRestOptionsFlowHandler:
     @pytest.mark.asyncio
     async def test_options_with_oauth_failure(self):
         """Invalid OAuth2 credentials should show an error."""
-        flow = OpenSkyRestOptionsFlowHandler()
+        flow = FlightIdOptionsFlowHandler()
         flow.hass = MagicMock()
 
         # Simulate failed API call (returns None)
         flow.hass.async_add_executor_job = AsyncMock(return_value=None)
 
         with (
-            patch("custom_components.opensky_ng.config_flow.TokenManager"),
-            patch("custom_components.opensky_ng.config_flow.OpenSkyApi"),
+            patch("custom_components.flightid.config_flow.TokenManager"),
+            patch("custom_components.flightid.config_flow.OpenSkyApi"),
             patch.object(flow, "async_show_form") as mock_show,
         ):
             await flow.async_step_init(
