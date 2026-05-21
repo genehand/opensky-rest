@@ -286,10 +286,15 @@ class FlightIdDataUpdateCoordinator(
         Calls ``https://api.planespotters.net/pub/photos/hex/{icao24}`` and
         returns the ``thumbnail_large.src`` of the first photo, or None
         if no photos are found or on error.
+
+        Per Planespotters API terms, server-side clients must send a
+        unique, descriptive User-Agent header identifying the application:
+        ``https://www.planespotters.net/photo/api``
         """
         try:
             resp = requests.get(
                 f"{PLANESPOTTERS_API}/{icao24}",
+                headers={"User-Agent": "flightID/1.0 (+https://github.com/genehand/flightID)"},
                 timeout=15,
             )
             resp.raise_for_status()

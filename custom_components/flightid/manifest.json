@@ -1,7 +1,7 @@
 {
   "domain": "flightid",
   "name": "FlightID",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "codeowners": ["@genehand"],
   "config_flow": true,
   "documentation": "https://github.com/genehand/flightID",
